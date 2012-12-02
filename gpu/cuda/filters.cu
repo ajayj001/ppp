@@ -94,13 +94,27 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 __global__ void
 histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *histogram, const size_t pitch) {
-	const int x = blockDim.x * blockIdx.x + threadIdx.x;
-	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+	const int x_base = (blockDim.x * blockIdx.x + threadIdx.x) * HISTOGRAM_PIXELS_WIDTH;
+	const int y_base = (blockDim.y * blockIdx.y + threadIdx.y) * HISTOGRAM_PIXELS_HEIGHT;
+	const int histogram_index = blockDim.y * threadIdx.y + threadIdx.x;
 
-	// Make sure we are within bounds
-	if (x >= width || y >= height) return;
+	// Initialize shared histogram
+	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
+	histogram_shared[histogram_index] = 0;
 
-	atomicAdd(&histogram[static_cast< uint >(grayImage[(y * pitch) + x])], 1);
+	for (int x = x_base; x < x_base + HISTOGRAM_PIXELS_WIDTH; x++) {
+		for (int y = y_base; y < y_base + HISTOGRAM_PIXELS_HEIGHT; y++) {
+			// Make sure we are within bounds
+			if (x >= width || y >= height) continue;
+		
+			// Add pixel data to shared histogram
+			histogram_shared[static_cast< uint >(grayImage[(y * pitch) + x])]++;
+		}
+	}
+
+	// Atomically add shared histogram to global histogram
+	__syncthreads();
+	atomicAdd(&histogram[histogram_index], histogram_shared[histogram_index]);
 }
 
 void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer) {
@@ -135,8 +149,8 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 
 	// Launch the kernel
 	kernelTime.start();
-	dim3 threadsPerBlock(16, 16);
-	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
+	dim3 threadsPerBlock(16, 16); // Product must be 256
+	dim3 blocksPerGrid(ceil((float)width / HISTOGRAM_PIXELS_WIDTH / threadsPerBlock.x), ceil((float)height / HISTOGRAM_PIXELS_HEIGHT / threadsPerBlock.y));
 	histogram1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, histogram_device, pitch);
 	checkError(cudaGetLastError(), "Failed to launch histogram1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
@@ -189,9 +203,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 	const int x_base = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-	for (int i = 0; i < CONTRAST1D_PIXELS_PER_THREAD; i++) {
-		int x = x_base * CONTRAST1D_PIXELS_PER_THREAD + i;
-		
+	for (int x = x_base; x < x_base + CONTRAST1D_PIXELS_PER_THREAD; x++) {
 		// Make sure we are within bounds
 		if (x >= width || y >= height) continue;
 	
@@ -342,9 +354,9 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	cudaDeviceSynchronize();
 	kernelTime.stop();
 
-	// Copy the histogram from the device to the host
+	// Copy the smooth image from the device to the host
 	copyFromDeviceTime.start();
-	error = cudaMemcpy(smoothImage, smoothImage_device, width * height * sizeof(uchar), cudaMemcpyDeviceToHost);
+	error = cudaMemcpy2D(smoothImage, width, smoothImage_device, pitch, width * sizeof(uchar), height, cudaMemcpyDeviceToHost);
 	checkError(error, "Failed to copy smoothImage from device to host (error code %s)\n");
 	copyFromDeviceTime.stop();
 
