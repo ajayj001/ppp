@@ -93,14 +93,14 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 }
 
 __global__ void
-histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *histogram) {
+histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *histogram, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
 
-	atomicAdd(&histogram[static_cast< uint >(grayImage[(y * width) + x])], 1);
+	atomicAdd(&histogram[static_cast< uint >(grayImage[(y * pitch) + x])], 1);
 }
 
 void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer) {
@@ -116,7 +116,8 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 	allocationTime.start();
 	uchar *grayImage_device;
 	uint *histogram_device;
-	error = cudaMalloc(&grayImage_device, width * height * sizeof(uchar));
+	size_t pitch;
+	error = cudaMallocPitch(&grayImage_device, &pitch, width * sizeof(uchar), height);
 	checkError(error, "Failed to allocate device buffer grayImage_device (error code %s)\n");
 	error = cudaMalloc(&histogram_device, HISTOGRAM_SIZE * sizeof(uint));
 	checkError(error, "Failed to allocate device buffer histogram_device (error code %s)\n");
@@ -128,7 +129,7 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy(grayImage_device, grayImage, width * height * sizeof(uchar), cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
@@ -136,7 +137,7 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
 	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	histogram1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, histogram_device);
+	histogram1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, histogram_device, pitch);
 	checkError(cudaGetLastError(), "Failed to launch histogram1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
@@ -184,7 +185,7 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 }
 
 __global__ void
-contrast1D_kernel(uchar *grayImage, const int width, const int height, uint min, uint max, float diff) {
+contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint max, const float diff, const size_t pitch) {
 	const int x_base = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -194,7 +195,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, uint min,
 		// Make sure we are within bounds
 		if (x >= width || y >= height) continue;
 	
-		uchar pixel = grayImage[(y * width) + x];
+		uchar pixel = grayImage[(y * pitch) + x];
 	
 		if ( pixel < min ) {
 			pixel = 0;
@@ -206,7 +207,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, uint min,
 			pixel = static_cast< uchar >(255.0f * (pixel - min) / diff);
 		}
 	
-		grayImage[(y * width) + x] = pixel;
+		grayImage[(y * pitch) + x] = pixel;
 	}
 }
 
@@ -222,7 +223,8 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	// Allocate device buffer
 	allocationTime.start();
 	uchar *grayImage_device;
-	error = cudaMalloc(&grayImage_device, width * height * sizeof(uchar));
+	size_t pitch;
+	error = cudaMallocPitch(&grayImage_device, &pitch, width * sizeof(uchar), height);
 	checkError(error, "Failed to allocate device buffer grayImage_device (error code %s)\n");
 	allocationTime.stop();
 
@@ -243,7 +245,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy(grayImage_device, grayImage, width * height * sizeof(uchar), cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
@@ -251,14 +253,14 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
 	dim3 blocksPerGrid(ceil((float)width / CONTRAST1D_PIXELS_PER_THREAD / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff);
+	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff, pitch);
 	checkError(cudaGetLastError(), "Failed to launch contrast1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
 
 	// Copy the grayscale image from the device to the host
 	copyFromDeviceTime.start();
-	error = cudaMemcpy(grayImage, grayImage_device, width * height * sizeof(uchar), cudaMemcpyDeviceToHost);
+	error = cudaMemcpy2D(grayImage, width, grayImage_device, pitch, width * sizeof(uchar), height, cudaMemcpyDeviceToHost);
 	checkError(error, "Failed to copy grayImage from device to host (error code %s)\n");
 	copyFromDeviceTime.stop();
 
@@ -276,7 +278,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 __constant__ float filter_constant[FILTER_LENGTH];
 
 __global__ void
-triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter) {
+triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -294,14 +296,14 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 				continue;
 			}
 
-			smoothPix += grayImage[(fy * width) + fx] * filter_constant[filterItem];
+			smoothPix += grayImage[(fy * pitch) + fx] * filter_constant[filterItem];
 			filterSum += filter_constant[filterItem];
 			filterItem++;
 		}
 	}
 
 	smoothPix /= filterSum;
-	smoothImage[(y * width) + x] = static_cast< uchar >(smoothPix);
+	smoothImage[(y * pitch) + x] = static_cast< uchar >(smoothPix);
 }
 
 void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer) {
@@ -316,22 +318,19 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	// Allocate three device buffers
 	allocationTime.start();
 	uchar *grayImage_device, *smoothImage_device;
-	float *filter_device;
-	error = cudaMalloc(&grayImage_device, width * height * sizeof(uchar));
+	size_t pitch;
+	error = cudaMallocPitch(&grayImage_device, &pitch, width * sizeof(uchar), height);
 	checkError(error, "Failed to allocate device buffer grayImage_device (error code %s)\n");
-	error = cudaMalloc(&smoothImage_device, width * height * sizeof(uchar));
+	error = cudaMallocPitch(&smoothImage_device, &pitch, width * sizeof(uchar), height);
 	checkError(error, "Failed to allocate device buffer smoothImage_device (error code %s)\n");
-	error = cudaMalloc(&filter_device, FILTER_LENGTH * sizeof(float));
-	checkError(error, "Failed to allocate device buffer filter_device (error code %s)\n");
 	allocationTime.stop();
 
 	// Copy the grayscale image and the filter from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy(grayImage_device, grayImage, width * height * sizeof(uchar), cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	error = cudaMemcpyToSymbol(filter_constant, filter, FILTER_LENGTH * sizeof(float));
-	error = cudaMemcpy(filter_device, filter, FILTER_LENGTH * sizeof(float), cudaMemcpyHostToDevice);
-	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
+	checkError(error, "Failed to copy filter from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
 	// Launch the kernel
@@ -352,7 +351,6 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	// Free the device buffers
 	cudaFree(grayImage_device);
 	cudaFree(smoothImage_device);
-	cudaFree(filter_device);
 
 	// Print the timers
 	cout << fixed << setprecision(6);
