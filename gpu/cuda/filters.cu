@@ -290,7 +290,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 __constant__ float filter_constant[FILTER_LENGTH];
 
 __global__ void
-triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, const size_t pitch) {
+triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -349,7 +349,7 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
 	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, filter_device);
+	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, pitch);
 	checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
