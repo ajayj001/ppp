@@ -106,7 +106,7 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 		for (int y = y_base; y < y_base + HISTOGRAM_PIXELS_HEIGHT; y++) {
 			// Make sure we are within bounds
 			if (x >= width || y >= height) continue;
-		
+
 			// Add pixel data to shared histogram
 			histogram_shared[static_cast< uint >(grayImage[(y * pitch) + x])]++;
 		}
@@ -206,9 +206,9 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 	for (int x = x_base; x < x_base + CONTRAST1D_PIXELS_PER_THREAD; x++) {
 		// Make sure we are within bounds
 		if (x >= width || y >= height) continue;
-	
+
 		uchar pixel = grayImage[(y * pitch) + x];
-	
+
 		if ( pixel < min ) {
 			pixel = 0;
 		}
@@ -218,7 +218,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 		else {
 			pixel = static_cast< uchar >(255.0f * (pixel - min) / diff);
 		}
-	
+
 		grayImage[(y * pitch) + x] = pixel;
 	}
 }
