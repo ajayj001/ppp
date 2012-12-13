@@ -1,5 +1,5 @@
 
-PROJ_BASE	:= /home/jlt230/gpu
+PROJ_BASE	:= /home/jlt230/ppp/gpu
 BIN		:= $(PROJ_BASE)/bin
 
 INCLUDES	:= -I"$(PROJ_BASE)/include"

@@ -21,8 +21,15 @@ void checkError(cudaError_t error, const char* description) {
 
 __global__ void
 rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int height, const size_t pitch) {
+	uchar4 in_r = ((uchar4*)inputImage)[blockDim.x * blockIdx.x / 4 + threadIdx.x];
+	uchar4 in_r = ((uchar4*)inputImage)[pitch * height + blockDim.x * blockIdx.x / 4 + threadIdx.x];
+	uchar4 out;
+	
+	
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    ((uchar4*)out)[blockIdx.x * 64/4 + threadIdx.x] = tmp3;
 
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
@@ -200,12 +207,13 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 
 __global__ void
 contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint max, const float diff, const size_t pitch) {
-	const int x_base = blockDim.x * blockIdx.x + threadIdx.x;
+	//const int x_base = (blockDim.x * blockIdx.x + threadIdx.x) * CONTRAST1D_PIXELS_PER_THREAD;
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-	for (int x = x_base; x < x_base + CONTRAST1D_PIXELS_PER_THREAD; x++) {
+	//for (int x = x_base; x < x_base + CONTRAST1D_PIXELS_PER_THREAD; x++) {
 		// Make sure we are within bounds
-		if (x >= width || y >= height) continue;
+		if (x >= width || y >= height) return;
 
 		uchar pixel = grayImage[(y * pitch) + x];
 
@@ -220,7 +228,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 		}
 
 		grayImage[(y * pitch) + x] = pixel;
-	}
+	//}
 }
 
 void contrast1D(uchar *grayImage, const int width, const int height, uint *histogram, NSTimer &timer) {
@@ -264,7 +272,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	// Launch the kernel
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
-	dim3 blocksPerGrid(ceil((float)width / CONTRAST1D_PIXELS_PER_THREAD / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
+	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
 	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff, pitch);
 	checkError(cudaGetLastError(), "Failed to launch contrast1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();

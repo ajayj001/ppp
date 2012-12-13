@@ -15,9 +15,9 @@ const unsigned int FILTER_LENGTH = 25;
 const float filter[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 2.0f, 3.0f, 2.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
 // Tunable parameter
-#define CONTRAST1D_PIXELS_PER_THREAD 1
+#define CONTRAST1D_PIXELS_PER_THREAD 4
 
-#define HISTOGRAM_PIXELS_WIDTH 1
-#define HISTOGRAM_PIXELS_HEIGHT 1
+#define HISTOGRAM_PIXELS_WIDTH 4
+#define HISTOGRAM_PIXELS_HEIGHT 4
 
 #endif
