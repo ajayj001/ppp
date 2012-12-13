@@ -19,28 +19,31 @@ void checkError(cudaError_t error, const char* description) {
 	}
 }
 
+rgb2gray_foo(uchar *out, uchar *in_r
+
 __global__ void
 rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int height, const size_t pitch) {
-	uchar4 in_r = ((uchar4*)inputImage)[blockDim.x * blockIdx.x / 4 + threadIdx.x];
-	uchar4 in_r = ((uchar4*)inputImage)[pitch * height + blockDim.x * blockIdx.x / 4 + threadIdx.x];
-	uchar4 out;
-	
-	
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
-
-    ((uchar4*)out)[blockIdx.x * 64/4 + threadIdx.x] = tmp3;
-
+	
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
+	
+	// Fetch 3 times 4 pixels from device buffer
+	const int quarterPitch = pitch / 4;
+	const uchar4 red = ((uchar4*)inputImage)[(y * quarterPitch) + x];
+	const uchar4 green = ((uchar4*)inputImage)[(quarterPitch * height) + (y * quarterPitch) + x];
+	const uchar4 blue = ((uchar4*)inputImage)[(2 * quarterPitch * height) + (y * quarterPitch) + x];
+	
+	// Calculate grey values for 4 pixels
+	uchar4 grey;
+	grey.x = (0.3f * red.x) + (0.59f * green.x) + (0.11f * blue.x);
+	grey.y = (0.3f * red.y) + (0.59f * green.y) + (0.11f * blue.y);
+	grey.z = (0.3f * red.z) + (0.59f * green.z) + (0.11f * blue.z);
+	grey.w = (0.3f * red.w) + (0.59f * green.w) + (0.11f * blue.w);
 
-	float r = static_cast< float >(inputImage[(y * pitch) + x]);
-	float g = static_cast< float >(inputImage[(pitch * height) + (y * pitch) + x]);
-	float b = static_cast< float >(inputImage[(2 * pitch * height) + (y * pitch) + x]);
-
-	float grayPix = (0.3f * r) + (0.59f * g) + (0.11f * b);
-
-	grayImage[(y * pitch) + x] = static_cast< uchar >(grayPix);
+	// Store 4 pixels back to the device buffer
+	((uchar4*)grayImage)[(y * quarterPitch) + x] = out;
 }
 
 void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int height, NSTimer &timer) {
@@ -74,8 +77,8 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 	// Launch the kernel
 	kernelTime.start();
-	dim3 threadsPerBlock(128, 4);
-	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
+	dim3 threadsPerBlock(16, 16);
+	dim3 blocksPerGrid(ceil((float)width / 4 / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
 	rgb2gray_kernel<<<blocksPerGrid, threadsPerBlock>>>(inputImage_device, grayImage_device, width, height, pitch);
 	checkError(cudaGetLastError(), "Failed to launch rgb2gray_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
@@ -101,23 +104,25 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 __global__ void
 histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *histogram, const size_t pitch) {
-	const int x_base = (blockDim.x * blockIdx.x + threadIdx.x) * HISTOGRAM_PIXELS_WIDTH;
-	const int y_base = (blockDim.y * blockIdx.y + threadIdx.y) * HISTOGRAM_PIXELS_HEIGHT;
-	const int histogram_index = blockDim.y * threadIdx.y + threadIdx.x;
+	const int x = blockDim.x * blockIdx.x + threadIdx.x;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+	// Fetch 4 bytes from device buffer
+	const uchar4 in = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
 	// Initialize shared histogram
+	const int histogram_index = blockDim.y * threadIdx.y + threadIdx.x;
 	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
 	histogram_shared[histogram_index] = 0;
 
-	for (int x = x_base; x < x_base + HISTOGRAM_PIXELS_WIDTH; x++) {
-		for (int y = y_base; y < y_base + HISTOGRAM_PIXELS_HEIGHT; y++) {
-			// Make sure we are within bounds
-			if (x >= width || y >= height) continue;
+	// Make sure we are within bounds
+	if (x >= width || y >= height) return;
 
-			// Add pixel data to shared histogram
-			histogram_shared[static_cast< uint >(grayImage[(y * pitch) + x])]++;
-		}
-	}
+	// Add pixel data to shared histogram
+	histogram_shared[in.x]++;
+	histogram_shared[in.y]++;
+	histogram_shared[in.z]++;
+	histogram_shared[in.w]++;
 
 	// Atomically add shared histogram to global histogram
 	__syncthreads();
@@ -157,7 +162,7 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 	// Launch the kernel
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16); // Product must be 256
-	dim3 blocksPerGrid(ceil((float)width / HISTOGRAM_PIXELS_WIDTH / threadsPerBlock.x), ceil((float)height / HISTOGRAM_PIXELS_HEIGHT / threadsPerBlock.y));
+	dim3 blocksPerGrid(ceil((float)width / 4 / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
 	histogram1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, histogram_device, pitch);
 	checkError(cudaGetLastError(), "Failed to launch histogram1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
@@ -205,30 +210,37 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 	//cout << "histogram1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
+__device__ void
+contrast1D_foo (uchar *pixel, const uint min, const uint max, const float diff) {
+	if ( *pixel < min ) {
+		*pixel = 0;
+	}
+	else if ( *pixel > max ) {
+		*pixel = 255;
+	}
+	else {
+		*pixel = static_cast< uchar >(255.0f * (*pixel - min) / diff);
+	}
+}
+
 __global__ void
 contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint max, const float diff, const size_t pitch) {
-	//const int x_base = (blockDim.x * blockIdx.x + threadIdx.x) * CONTRAST1D_PIXELS_PER_THREAD;
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-	//for (int x = x_base; x < x_base + CONTRAST1D_PIXELS_PER_THREAD; x++) {
-		// Make sure we are within bounds
-		if (x >= width || y >= height) return;
+	// Fetch 4 pixels from device buffer
+	uchar4 pixels = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
-		uchar pixel = grayImage[(y * pitch) + x];
+	// Make sure we are within bounds
+	if (x >= width || y >= height) return;
 
-		if ( pixel < min ) {
-			pixel = 0;
-		}
-		else if ( pixel > max ) {
-			pixel = 255;
-		}
-		else {
-			pixel = static_cast< uchar >(255.0f * (pixel - min) / diff);
-		}
+	contrast1D_foo(&pixels.x, min, max, diff);
+	contrast1D_foo(&pixels.y, min, max, diff);
+	contrast1D_foo(&pixels.z, min, max, diff);
+	contrast1D_foo(&pixels.w, min, max, diff);
 
-		grayImage[(y * pitch) + x] = pixel;
-	//}
+	// Store 4 pixels back to the device buffer
+	((uchar4*)grayImage)[(y * pitch / 4) + x] = pixels;
 }
 
 void contrast1D(uchar *grayImage, const int width, const int height, uint *histogram, NSTimer &timer) {
@@ -272,7 +284,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	// Launch the kernel
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
-	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
+	dim3 blocksPerGrid(ceil((float)width / 4 / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
 	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff, pitch);
 	checkError(cudaGetLastError(), "Failed to launch contrast1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
