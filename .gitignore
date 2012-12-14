@@ -1,3 +1,4 @@
 *.o
 
 gpu/bin/*
+gpu/*.bmp

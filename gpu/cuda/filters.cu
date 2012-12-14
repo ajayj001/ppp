@@ -11,7 +11,9 @@ using std::endl;
 using std::fixed;
 using std::setprecision;
 
-
+/**
+ * Checks whether the last operation completed successfully and prints an error otherwise.
+ */
 void checkError(cudaError_t error, const char* description) {
 	if (error != cudaSuccess) {
 		fprintf(stderr, description, cudaGetErrorString(error));
@@ -19,6 +21,14 @@ void checkError(cudaError_t error, const char* description) {
 	}
 }
 
+/**
+ * Kernel which converts an RGB image to a gray image. Uses the following optimizations:
+ *  - Pixels are fetched in blocks of 4 to reduce the number of memory accesses
+ *  - Input and output buffers are pitched to improve coalescing of the memory accesses
+ *
+ * Notes: bounds checking for pixels 2, 3 and 4 is not necessary, since pitching ensures we always have
+ * multiples of at least 4.
+ */
 __global__ void
 rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int height, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -44,6 +54,9 @@ rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int 
 	((uchar4*)grayImage)[(y * quarterPitch) + x] = grey;
 }
 
+/**
+ * Function calling the rgb2gray kernel. Also initializes the device context.
+ */
 void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int height, NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
@@ -57,7 +70,7 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 	NSTimer kernelTime = NSTimer("kernelTime", false, false);
 	NSTimer copyFromDeviceTime = NSTimer("copyFromDeviceTime", false, false);
 
-	// Allocate two device buffers
+	// Allocate two device buffers (pitched)
 	allocationTime.start();
 	uchar *inputImage_device, *grayImage_device;
 	size_t pitch;
@@ -94,12 +107,19 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 	// Print the timers
 	cout << fixed << setprecision(6);
-	//cout << "rgb2gray (allocation): \t\t\t" << allocationTime.getElapsed() << " seconds." << endl;
-	//cout << "rgb2gray (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "rgb2gray (allocation): \t\t\t" << allocationTime.getElapsed() << " seconds." << endl;
+	cout << "rgb2gray (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
 	cout << "rgb2gray (kernel): \t\t\t" << kernelTime.getElapsed() << " seconds." << endl;
-	//cout << "rgb2gray (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "rgb2gray (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
+/**
+ * Kernel which calculates a histogram of pixel values. Uses the following optimizations:
+ *  - Pixels are fetched in blocks of 4 to reduce the number of memory accesses
+ *  - Histogram values are first written to shared memory per block, then written atomically to global
+ *    device memory atomically.
+ *  - Input and output buffers are pitched to improve coalescing of the memory accesses
+ */
 __global__ void
 histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *histogram, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -109,9 +129,9 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 	const uchar4 in = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
 	// Initialize shared histogram
-	const int histogram_index = blockDim.y * threadIdx.y + threadIdx.x;
+	const int histogramIndex = blockDim.y * threadIdx.y + threadIdx.x;
 	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
-	histogram_shared[histogram_index] = 0;
+	histogram_shared[histogramIndex] = 0;
 	__syncthreads();
 
 	// Make sure we are within bounds
@@ -119,15 +139,21 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 
 	// Add pixel data to shared histogram
 	histogram_shared[in.x]++;
-	histogram_shared[in.y]++;
-	histogram_shared[in.z]++;
-	histogram_shared[in.w]++;
+	if (x + 1 < width)
+		histogram_shared[in.y]++;
+	if (x + 2 < width)
+		histogram_shared[in.z]++;
+	if (x + 3 < width)
+		histogram_shared[in.w]++;
 
 	// Atomically add shared histogram to global histogram
 	__syncthreads();
-	atomicAdd(&histogram[histogram_index], histogram_shared[histogram_index]);
+	atomicAdd(&histogram[histogramIndex], histogram_shared[histogramIndex]);
 }
 
+/**
+ * Function calling the histogram kernel.
+ */
 void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
@@ -203,20 +229,33 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 
 	// Print the timers
 	cout << fixed << setprecision(6);
-	//cout << "histogram1D (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
-	//cout << "histogram1D (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "histogram1D (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
+	cout << "histogram1D (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
 	cout << "histogram1D (kernel): \t\t\t" << kernelTime.getElapsed() << " seconds." << endl;
-	//cout << "histogram1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "histogram1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
+/**
+ * Helper function for the contrast1D kernel to determine the new value of pixel.
+ */
 __device__ void
 contrast1D_pixelValue (uchar &pixel, const uint min, const uint diff) {
 	float temp = 255.0f * (pixel - min) / diff;
+	// Two statements below used to be branches
 	temp = fminf(temp, 255.0f);
 	temp = fmaxf(temp, 0.0f);
 	pixel = static_cast< uchar >(temp);
 }
 
+/**
+ * Kernel which improves the contrast of the image. Uses the following optimizations:
+ *  - Pixels are fetched in blocks of 4 to reduce the number of memory accesses
+ *  - Branches are eliminated and replaced by single-precision minimum and maximum functions
+ *  - Input and output buffers are pitched to improve coalescing of the memory accesses
+ *
+ * Notes: bounds checking for pixels 2, 3 and 4 is not necessary, since pitching ensures we always have
+ * multiples of at least 4.
+ */
 __global__ void
 contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint diff, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -228,6 +267,7 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
 
+	// Calculate new pixel values for all 4 pixels
 	contrast1D_pixelValue(pixels.x, min, diff);
 	contrast1D_pixelValue(pixels.y, min, diff);
 	contrast1D_pixelValue(pixels.z, min, diff);
@@ -237,6 +277,9 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 	((uchar4*)grayImage)[(y * pitch / 4) + x] = pixels;
 }
 
+/**
+ * Function calling the constrast1D kernel.
+ */
 void contrast1D(uchar *grayImage, const int width, const int height, uint *histogram, NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
@@ -295,71 +338,108 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 
 	// Print the timers
 	cout << fixed << setprecision(6);
-	//cout << "contrast1D (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
-	//cout << "contrast1D (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "contrast1D (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
+	cout << "contrast1D (copyToDevice): \t\t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
 	cout << "contrast1D (kernel): \t\t\t" << kernelTime.getElapsed() << " seconds." << endl;
-	//cout << "contrast1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "contrast1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
+/**
+ * Constant variable containing the filter kernel.
+ */
 __constant__ float filter_constant[FILTER_SIZE][FILTER_SIZE];
 
+/**
+ * Kernel which smoothes an image using a 25-point filter. This version does bounds checking, has no
+ * shared memory optimizations and should be used for the borders of the image.
+ */
+__global__ void
+triangularSmooth_kernel_borders(uchar *grayImage, uchar *smoothImage, const int width, const int height, const int xOffset, const int yOffset) {
+	const int x = blockDim.x * blockIdx.x + threadIdx.x + xOffset;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y + yOffset;
+
+	// Make sure we are within bounds
+	if (x >= width || y >= height) return;
+
+ 	uint filterItem = 0;
+	float filterSum = 0.0f;
+	float smoothPix = 0.0f;
+
+	for ( int fy = y - 2; fy <= y + 2; fy++ ) {
+		for ( int fx = x - 2; fx <= x + 2; fx++ ) {
+			if ( ((fy < 0) || (fy >= height)) || ((fx < 0) || (fx >= width)) ) {
+				filterItem++;
+				continue;
+			}
+
+			smoothPix += grayImage[(fy * width) + fx] * filter_constant[0][filterItem];
+			filterSum += filter_constant[0][filterItem];
+			filterItem++;
+		}
+	}
+
+	smoothPix /= filterSum;
+	smoothImage[(y * width) + x] = static_cast< uchar >(smoothPix);
+}
+
+/**
+ * Helper function for the triangularSmooth kernel that fetches 1 pixel to shared memory.
+ */
+__device__ void
+triangularSmooth_fetchPixel(uchar *image_shared, uchar *image, const int width, const int height, const int x, const int y, const int xOffset, const int yOffset) {
+	image_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2 + yOffset) + (threadIdx.x + 2 + xOffset)] = image[(y + yOffset) * width + (x + xOffset)];
+}
+
+/**
+ * Kernel which smoothes an image using a 25-point filter. This version does no bounds checking and expects a border
+ * of at least 2 pixels around the area to process. It uses shared memory to cache a part of the image in order to
+ * reduce the number of memory accesses.
+ */
 __global__ void
 triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x + 2;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y + 2;
 
+	// Allocate shared memory to cache part of image
 	__shared__ uchar grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (SMOOTH_BLOCK_HEIGHT + 4)];
 
-	grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 2)] = grayImage[y * width + x];
+	// All threads fetch one pixel (no offset)
+	triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, 0);
 
-	if (threadIdx.x == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 0)] = grayImage[(y + 0) * width + (x - 2)];
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 1)] = grayImage[(y + 0) * width + (x - 1)];
+	// Left column fetches two border pixels on left
+	if (threadIdx.x < 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, -2, 0);
+	}
+	// Top row fetches two border pixels on top
+	if (threadIdx.y < 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, -2);
+	}
+	// Right column fetches two border pixels on right
+	if (threadIdx.x >= SMOOTH_BLOCK_WIDTH - 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 2, 0);
+	}
+	// Bottom row fetches two border pixels on bottom
+	if (threadIdx.y >= SMOOTH_BLOCK_HEIGHT - 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, 2);
+	}
+	// Topleft 4 threads fetch 4 corner pixels
+	if (threadIdx.x < 2 && threadIdx.y < 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, -2, -2);
+	}
+	// Topright 4 threads fetch 4 corner pixels
+	if (threadIdx.x >= SMOOTH_BLOCK_HEIGHT - 2 && threadIdx.y < 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 2, -2);
+	}
+	// Bottomleft 4 threads fetch 4 corner pixels
+	if (threadIdx.x < 2 && threadIdx.y >= SMOOTH_BLOCK_HEIGHT - 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, -2, 2);
+	}
+	// Bottomright 4 threads fetch 4 corner pixels
+	if (threadIdx.x >= SMOOTH_BLOCK_HEIGHT - 2 && threadIdx.y >= SMOOTH_BLOCK_HEIGHT - 2) {
+		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 2, 2);
 	}
 
-	if (threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 2)] = grayImage[(y - 2) * width + (x + 0)];
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 2)] = grayImage[(y - 1) * width + (x + 0)];
-	}
-
-	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y + 0) * width + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y + 0) * width + (x + 2)] : 0;
-	}
-
-	if (threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 2)] = y + 1 < height ? grayImage[(y + 1) * width + (x + 0)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 2)] = y + 2 < height ? grayImage[(y + 2) * width + (x + 0)] : 0;
-	}
-
-	if (threadIdx.x == 0 && threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 0)] = grayImage[(y - 2) * width + (x - 2)];
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 1)] = grayImage[(y - 2) * width + (x - 1)];
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 0)] = grayImage[(y - 1) * width + (x - 2)];
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 1)] = grayImage[(y - 1) * width + (x - 1)];
-	}
-
-	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y - 2) * width + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y - 2) * width + (x + 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y - 1) * width + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y - 1) * width + (x + 2)] : 0;
-	}
-
-	if (threadIdx.x == 0 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 0)] = y + 1 < height ? grayImage[(y + 1) * width + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 1)] = y + 1 < height ? grayImage[(y + 1) * width + (x - 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 0)] = y + 2 < height ? grayImage[(y + 2) * width + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 1)] = y + 2 < height ? grayImage[(y + 2) * width + (x - 1)] : 0;
-	}
-
-	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 3)] = y + 1 < height && x + 1 < width ? grayImage[(y + 1) * width + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 4)] = y + 1 < height && x + 2 < width ? grayImage[(y + 1) * width + (x + 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 3)] = y + 2 < height && x + 1 < width ? grayImage[(y + 2) * width + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 4)] = y + 2 < height && x + 2 < width ? grayImage[(y + 2) * width + (x + 2)] : 0;
-	}
-	
+	// Wait until the cache is filled
 	__syncthreads();
 
 	// Make sure we are within bounds
@@ -379,6 +459,9 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 	smoothImage[(y * width) + x] = static_cast< uchar >(smoothPix);
 }
 
+/**
+ * Function calling the triangularSmooth kernels.
+ */
 void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
@@ -405,12 +488,50 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	checkError(error, "Failed to copy filter from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
-	// Launch the kernel
+	// Launch the different kernels
 	kernelTime.start();
-	dim3 threadsPerBlock(SMOOTH_BLOCK_WIDTH, SMOOTH_BLOCK_HEIGHT);
-	dim3 blocksPerGrid(ceil((float)(width - 4) / threadsPerBlock.x), ceil((float)(height - 4) / threadsPerBlock.y));
-	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height);
-	checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
+	int widthProcessed = 0, heightProcessed = 0;
+	{
+		// Main image area, fast kernel
+		dim3 threadsPerBlock(SMOOTH_BLOCK_WIDTH, SMOOTH_BLOCK_HEIGHT);
+		dim3 blocksPerGrid(floor((float)(width - 4) / threadsPerBlock.x), floor((float)(height - 4) / threadsPerBlock.y));
+		triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height);
+		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
+		widthProcessed += blocksPerGrid.x * threadsPerBlock.x;
+		heightProcessed += blocksPerGrid.y * threadsPerBlock.y;
+	}
+	{
+		// Left border (width 2), bounds-checking kernel
+		dim3 threadsPerBlock(2, 256);
+		dim3 blocksPerGrid(1, ceil((float)height / threadsPerBlock.y));
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, 0);
+		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
+		widthProcessed += blocksPerGrid.x * threadsPerBlock.x;
+	}
+	{
+		// Top border (height 2), bounds-checking kernel
+		dim3 threadsPerBlock(256, 2);
+		dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), 1);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, 0);
+		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
+		heightProcessed += blocksPerGrid.y * threadsPerBlock.y;
+	}
+	{
+		// Right border (width variable), bounds-checking kernel
+		int blockWidth = width - widthProcessed;
+		dim3 threadsPerBlock(blockWidth, 512 / blockWidth);
+		dim3 blocksPerGrid(1, ceil((float)height / threadsPerBlock.y));
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, widthProcessed, 0);
+		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
+	}
+	{
+		// Bottom border (height variable), bounds-checking kernel
+		int blockHeight = height - heightProcessed;
+		dim3 threadsPerBlock(512 / blockHeight, blockHeight);
+		dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), 1);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, heightProcessed);
+		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
+	}
 	cudaDeviceSynchronize();
 	kernelTime.stop();
 
@@ -426,9 +547,9 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 
 	// Print the timers
 	cout << fixed << setprecision(6);
-	//cout << "triangularSmooth (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
-	//cout << "triangularSmooth (copyToDevice): \t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "triangularSmooth (allocation): \t\t" << allocationTime.getElapsed() << " seconds." << endl;
+	cout << "triangularSmooth (copyToDevice): \t" << copyToDeviceTime.getElapsed() << " seconds." << endl;
 	cout << "triangularSmooth (kernel): \t\t" << kernelTime.getElapsed() << " seconds." << endl;
-	//cout << "triangularSmooth (copyFromDevice): \t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
+	cout << "triangularSmooth (copyFromDevice): \t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
