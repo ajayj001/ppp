@@ -304,84 +304,79 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 __constant__ float filter_constant[FILTER_SIZE][FILTER_SIZE];
 
 __global__ void
-triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const size_t pitch) {
-	const int x = blockDim.x * blockIdx.x + threadIdx.x;
-	const int y = blockDim.y * blockIdx.y + threadIdx.y;
+triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height) {
+	const int x = blockDim.x * blockIdx.x + threadIdx.x + 2;
+	const int y = blockDim.y * blockIdx.y + threadIdx.y + 2;
 
 	__shared__ uchar grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (SMOOTH_BLOCK_HEIGHT + 4)];
 
-	grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 2)] = grayImage[y * pitch + x];
+	grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 2)] = grayImage[y * width + x];
 
 	if (threadIdx.x == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 0)] = x - 2 >= 0 ? grayImage[(y + 0) * pitch + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 1)] = x - 1 >= 0 ? grayImage[(y + 0) * pitch + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 0)] = grayImage[(y + 0) * width + (x - 2)];
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 1)] = grayImage[(y + 0) * width + (x - 1)];
 	}
 
 	if (threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 2)] = y - 2 >= 0 ? grayImage[(y - 2) * pitch + (x + 0)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 2)] = y - 1 >= 0 ? grayImage[(y - 1) * pitch + (x + 0)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 2)] = grayImage[(y - 2) * width + (x + 0)];
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 2)] = grayImage[(y - 1) * width + (x + 0)];
 	}
 
 	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y + 0) * pitch + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y + 0) * pitch + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y + 0) * width + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y + 0) * width + (x + 2)] : 0;
 	}
 
 	if (threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 2)] = y + 1 < height ? grayImage[(y + 1) * pitch + (x + 0)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 2)] = y + 2 < height ? grayImage[(y + 2) * pitch + (x + 0)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 2)] = y + 1 < height ? grayImage[(y + 1) * width + (x + 0)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 2)] = y + 2 < height ? grayImage[(y + 2) * width + (x + 0)] : 0;
 	}
 
 	if (threadIdx.x == 0 && threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 0)] = y - 2 >= 0 && x - 2 >= 0 ? grayImage[(y - 2) * pitch + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 1)] = y - 2 >= 0 && x - 1 >= 0 ? grayImage[(y - 2) * pitch + (x - 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 0)] = y - 1 >= 0 && x - 2 >= 0 ? grayImage[(y - 1) * pitch + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 1)] = y - 1 >= 0 && x - 1 >= 0 ? grayImage[(y - 1) * pitch + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 0)] = grayImage[(y - 2) * width + (x - 2)];
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 1)] = grayImage[(y - 2) * width + (x - 1)];
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 0)] = grayImage[(y - 1) * width + (x - 2)];
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 1)] = grayImage[(y - 1) * width + (x - 1)];
 	}
 
 	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == 0) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 3)] = y - 2 >= 0 && x + 1 < width ? grayImage[(y - 2) * pitch + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 4)] = y - 2 >= 0 && x + 2 < width ? grayImage[(y - 2) * pitch + (x + 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 3)] = y - 1 >= 0 && x + 1 < width ? grayImage[(y - 1) * pitch + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 4)] = y - 1 >= 0 && x + 2 < width ? grayImage[(y - 1) * pitch + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y - 2) * width + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y - 2) * width + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y - 1) * width + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y - 1) * width + (x + 2)] : 0;
 	}
 
 	if (threadIdx.x == 0 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 0)] = y + 1 >= 0 && x - 2 >= 0 ? grayImage[(y + 1) * pitch + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 1)] = y + 1 >= 0 && x - 1 >= 0 ? grayImage[(y + 1) * pitch + (x - 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 0)] = y + 2 >= 0 && x - 2 >= 0 ? grayImage[(y + 2) * pitch + (x - 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 1)] = y + 2 >= 0 && x - 1 >= 0 ? grayImage[(y + 2) * pitch + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 0)] = y + 1 < height ? grayImage[(y + 1) * width + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 1)] = y + 1 < height ? grayImage[(y + 1) * width + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 0)] = y + 2 < height ? grayImage[(y + 2) * width + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 1)] = y + 2 < height ? grayImage[(y + 2) * width + (x - 1)] : 0;
 	}
 
 	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 3)] = y + 1 < height && x + 1 < width ? grayImage[(y + 1) * pitch + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 4)] = y + 1 < height && x + 2 < width ? grayImage[(y + 1) * pitch + (x + 2)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 3)] = y + 2 < height && x + 1 < width ? grayImage[(y + 2) * pitch + (x + 1)] : 0;
-		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 4)] = y + 2 < height && x + 2 < width ? grayImage[(y + 2) * pitch + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 3)] = y + 1 < height && x + 1 < width ? grayImage[(y + 1) * width + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 4)] = y + 1 < height && x + 2 < width ? grayImage[(y + 1) * width + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 3)] = y + 2 < height && x + 1 < width ? grayImage[(y + 2) * width + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 4)] = y + 2 < height && x + 2 < width ? grayImage[(y + 2) * width + (x + 2)] : 0;
 	}
 	
 	__syncthreads();
 
 	// Make sure we are within bounds
-	if (x >= width || y >= height) return;
+	if (x >= width - 2 || y >= height - 2) return;
 
 	float filterSum = 0.0f;
 	float smoothPix = 0.0f;
 
-	int ymin = y == 0 ? 0 : y == 1 ? -1 : -2;
-	int ymax = y == height - 1 ? 0 : y == height - 2 ? 1 : 2;
-	int xmin = x == 0 ? 0 : x == 1 ? -1 : -2;
-	int xmax = x == width - 1 ? 0 : x == width - 2 ? 1 : 2;
-
-	for ( int dy = ymin; dy <= ymax; dy++ ) {
-		for ( int dx = xmin; dx <= xmax; dx++ ) {
+	for ( int dy = -2; dy <= 2; dy++ ) {
+		for ( int dx = -2; dx <= 2; dx++ ) {
 			smoothPix += grayImage_shared[(threadIdx.y + dy + 2) * (SMOOTH_BLOCK_WIDTH + 4) + (threadIdx.x + dx + 2)] * filter_constant[dy+2][dx+2];
 			filterSum += filter_constant[dy+2][dx+2];
 		}
 	}
 
 	smoothPix /= filterSum;
-	smoothImage[(y * pitch) + x] = static_cast< uchar >(smoothPix);
+	smoothImage[(y * width) + x] = static_cast< uchar >(smoothPix);
 }
 
 void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer) {
@@ -396,16 +391,15 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	// Allocate three device buffers
 	allocationTime.start();
 	uchar *grayImage_device, *smoothImage_device;
-	size_t pitch;
-	error = cudaMallocPitch(&grayImage_device, &pitch, width * sizeof(uchar), height);
+	error = cudaMalloc(&grayImage_device, width * height * sizeof(uchar));
 	checkError(error, "Failed to allocate device buffer grayImage_device (error code %s)\n");
-	error = cudaMallocPitch(&smoothImage_device, &pitch, width * sizeof(uchar), height);
+	error = cudaMalloc(&smoothImage_device, width * height * sizeof(uchar));
 	checkError(error, "Failed to allocate device buffer smoothImage_device (error code %s)\n");
 	allocationTime.stop();
 
 	// Copy the grayscale image and the filter from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
+	error = cudaMemcpy(grayImage_device, grayImage, width * height * sizeof(uchar), cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	error = cudaMemcpyToSymbol(filter_constant, filter, FILTER_SIZE * FILTER_SIZE * sizeof(float));
 	checkError(error, "Failed to copy filter from host to device (error code %s)\n");
@@ -414,15 +408,15 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	// Launch the kernel
 	kernelTime.start();
 	dim3 threadsPerBlock(SMOOTH_BLOCK_WIDTH, SMOOTH_BLOCK_HEIGHT);
-	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, pitch);
+	dim3 blocksPerGrid(ceil((float)(width - 4) / threadsPerBlock.x), ceil((float)(height - 4) / threadsPerBlock.y));
+	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height);
 	checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
 
 	// Copy the smooth image from the device to the host
 	copyFromDeviceTime.start();
-	error = cudaMemcpy2D(smoothImage, width, smoothImage_device, pitch, width * sizeof(uchar), height, cudaMemcpyDeviceToHost);
+	error = cudaMemcpy(smoothImage, smoothImage_device, width * height * sizeof(uchar), cudaMemcpyDeviceToHost);
 	checkError(error, "Failed to copy smoothImage from device to host (error code %s)\n");
 	copyFromDeviceTime.stop();
 
