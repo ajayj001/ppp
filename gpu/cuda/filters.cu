@@ -19,31 +19,29 @@ void checkError(cudaError_t error, const char* description) {
 	}
 }
 
-rgb2gray_foo(uchar *out, uchar *in_r
-
 __global__ void
 rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int height, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
-	
+
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
-	
+
 	// Fetch 3 times 4 pixels from device buffer
 	const int quarterPitch = pitch / 4;
 	const uchar4 red = ((uchar4*)inputImage)[(y * quarterPitch) + x];
 	const uchar4 green = ((uchar4*)inputImage)[(quarterPitch * height) + (y * quarterPitch) + x];
 	const uchar4 blue = ((uchar4*)inputImage)[(2 * quarterPitch * height) + (y * quarterPitch) + x];
-	
+
 	// Calculate grey values for 4 pixels
 	uchar4 grey;
-	grey.x = (0.3f * red.x) + (0.59f * green.x) + (0.11f * blue.x);
-	grey.y = (0.3f * red.y) + (0.59f * green.y) + (0.11f * blue.y);
-	grey.z = (0.3f * red.z) + (0.59f * green.z) + (0.11f * blue.z);
-	grey.w = (0.3f * red.w) + (0.59f * green.w) + (0.11f * blue.w);
+	grey.x = (RED_COEFFICIENT * red.x) + (GREEN_COEFFICIENT * green.x) + (BLUE_COEFFICIENT * blue.x);
+	grey.y = (RED_COEFFICIENT * red.y) + (GREEN_COEFFICIENT * green.y) + (BLUE_COEFFICIENT * blue.y);
+	grey.z = (RED_COEFFICIENT * red.z) + (GREEN_COEFFICIENT * green.z) + (BLUE_COEFFICIENT * blue.z);
+	grey.w = (RED_COEFFICIENT * red.w) + (GREEN_COEFFICIENT * green.w) + (BLUE_COEFFICIENT * blue.w);
 
 	// Store 4 pixels back to the device buffer
-	((uchar4*)grayImage)[(y * quarterPitch) + x] = out;
+	((uchar4*)grayImage)[(y * quarterPitch) + x] = grey;
 }
 
 void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int height, NSTimer &timer) {
@@ -114,6 +112,7 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 	const int histogram_index = blockDim.y * threadIdx.y + threadIdx.x;
 	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
 	histogram_shared[histogram_index] = 0;
+	__syncthreads();
 
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
@@ -211,20 +210,15 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 }
 
 __device__ void
-contrast1D_foo (uchar *pixel, const uint min, const uint max, const float diff) {
-	if ( *pixel < min ) {
-		*pixel = 0;
-	}
-	else if ( *pixel > max ) {
-		*pixel = 255;
-	}
-	else {
-		*pixel = static_cast< uchar >(255.0f * (*pixel - min) / diff);
-	}
+contrast1D_pixelValue (uchar &pixel, const uint min, const uint diff) {
+	float temp = 255.0f * (pixel - min) / diff;
+	temp = fminf(temp, 255.0f);
+	temp = fmaxf(temp, 0.0f);
+	pixel = static_cast< uchar >(temp);
 }
 
 __global__ void
-contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint max, const float diff, const size_t pitch) {
+contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint diff, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -234,10 +228,10 @@ contrast1D_kernel(uchar *grayImage, const int width, const int height, const uin
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
 
-	contrast1D_foo(&pixels.x, min, max, diff);
-	contrast1D_foo(&pixels.y, min, max, diff);
-	contrast1D_foo(&pixels.z, min, max, diff);
-	contrast1D_foo(&pixels.w, min, max, diff);
+	contrast1D_pixelValue(pixels.x, min, diff);
+	contrast1D_pixelValue(pixels.y, min, diff);
+	contrast1D_pixelValue(pixels.z, min, diff);
+	contrast1D_pixelValue(pixels.w, min, diff);
 
 	// Store 4 pixels back to the device buffer
 	((uchar4*)grayImage)[(y * pitch / 4) + x] = pixels;
@@ -273,7 +267,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 		i--;
 	}
 	uint max = i;
-	float diff = max - min;
+	uint diff = max - min;
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
@@ -285,7 +279,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
 	dim3 blocksPerGrid(ceil((float)width / 4 / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff, pitch);
+	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, diff, pitch);
 	checkError(cudaGetLastError(), "Failed to launch contrast1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
@@ -307,30 +301,82 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	//cout << "contrast1D (copyFromDevice): \t\t" << copyFromDeviceTime.getElapsed() << " seconds." << endl;
 }
 
-__constant__ float filter_constant[FILTER_LENGTH];
+__constant__ float filter_constant[FILTER_SIZE][FILTER_SIZE];
 
 __global__ void
 triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, const int height, const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
+	__shared__ uchar grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (SMOOTH_BLOCK_HEIGHT + 4)];
+
+	grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 2)] = grayImage[y * pitch + x];
+
+	if (threadIdx.x == 0) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 0)] = x - 2 >= 0 ? grayImage[(y + 0) * pitch + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 1)] = x - 1 >= 0 ? grayImage[(y + 0) * pitch + (x - 1)] : 0;
+	}
+
+	if (threadIdx.y == 0) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 2)] = y - 2 >= 0 ? grayImage[(y - 2) * pitch + (x + 0)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 2)] = y - 1 >= 0 ? grayImage[(y - 1) * pitch + (x + 0)] : 0;
+	}
+
+	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 3)] = x + 1 < width ? grayImage[(y + 0) * pitch + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2) + (threadIdx.x + 4)] = x + 2 < width ? grayImage[(y + 0) * pitch + (x + 2)] : 0;
+	}
+
+	if (threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 2)] = y + 1 < height ? grayImage[(y + 1) * pitch + (x + 0)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 2)] = y + 2 < height ? grayImage[(y + 2) * pitch + (x + 0)] : 0;
+	}
+
+	if (threadIdx.x == 0 && threadIdx.y == 0) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 0)] = y - 2 >= 0 && x - 2 >= 0 ? grayImage[(y - 2) * pitch + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 1)] = y - 2 >= 0 && x - 1 >= 0 ? grayImage[(y - 2) * pitch + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 0)] = y - 1 >= 0 && x - 2 >= 0 ? grayImage[(y - 1) * pitch + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 1)] = y - 1 >= 0 && x - 1 >= 0 ? grayImage[(y - 1) * pitch + (x - 1)] : 0;
+	}
+
+	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == 0) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 3)] = y - 2 >= 0 && x + 1 < width ? grayImage[(y - 2) * pitch + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 0) + (threadIdx.x + 4)] = y - 2 >= 0 && x + 2 < width ? grayImage[(y - 2) * pitch + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 3)] = y - 1 >= 0 && x + 1 < width ? grayImage[(y - 1) * pitch + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 1) + (threadIdx.x + 4)] = y - 1 >= 0 && x + 2 < width ? grayImage[(y - 1) * pitch + (x + 2)] : 0;
+	}
+
+	if (threadIdx.x == 0 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 0)] = y + 1 >= 0 && x - 2 >= 0 ? grayImage[(y + 1) * pitch + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 1)] = y + 1 >= 0 && x - 1 >= 0 ? grayImage[(y + 1) * pitch + (x - 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 0)] = y + 2 >= 0 && x - 2 >= 0 ? grayImage[(y + 2) * pitch + (x - 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 1)] = y + 2 >= 0 && x - 1 >= 0 ? grayImage[(y + 2) * pitch + (x - 1)] : 0;
+	}
+
+	if (threadIdx.x == SMOOTH_BLOCK_WIDTH - 1 && threadIdx.y == SMOOTH_BLOCK_HEIGHT - 1) {
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 3)] = y + 1 < height && x + 1 < width ? grayImage[(y + 1) * pitch + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 3) + (threadIdx.x + 4)] = y + 1 < height && x + 2 < width ? grayImage[(y + 1) * pitch + (x + 2)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 3)] = y + 2 < height && x + 1 < width ? grayImage[(y + 2) * pitch + (x + 1)] : 0;
+		grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 4) + (threadIdx.x + 4)] = y + 2 < height && x + 2 < width ? grayImage[(y + 2) * pitch + (x + 2)] : 0;
+	}
+	
+	__syncthreads();
+
 	// Make sure we are within bounds
 	if (x >= width || y >= height) return;
 
-	uint filterItem = 0;
 	float filterSum = 0.0f;
 	float smoothPix = 0.0f;
 
-	for ( int fy = y - 2; fy < y + 3; fy++ ) {
-		for ( int fx = x - 2; fx < x + 3; fx++ ) {
-			if ( ((fy < 0) || (fy >= height)) || ((fx < 0) || (fx >= width)) ) {
-				filterItem++;
-				continue;
-			}
+	int ymin = y == 0 ? 0 : y == 1 ? -1 : -2;
+	int ymax = y == height - 1 ? 0 : y == height - 2 ? 1 : 2;
+	int xmin = x == 0 ? 0 : x == 1 ? -1 : -2;
+	int xmax = x == width - 1 ? 0 : x == width - 2 ? 1 : 2;
 
-			smoothPix += grayImage[(fy * pitch) + fx] * filter_constant[filterItem];
-			filterSum += filter_constant[filterItem];
-			filterItem++;
+	for ( int dy = ymin; dy <= ymax; dy++ ) {
+		for ( int dx = xmin; dx <= xmax; dx++ ) {
+			smoothPix += grayImage_shared[(threadIdx.y + dy + 2) * (SMOOTH_BLOCK_WIDTH + 4) + (threadIdx.x + dx + 2)] * filter_constant[dy+2][dx+2];
+			filterSum += filter_constant[dy+2][dx+2];
 		}
 	}
 
@@ -361,13 +407,13 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	copyToDeviceTime.start();
 	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
-	error = cudaMemcpyToSymbol(filter_constant, filter, FILTER_LENGTH * sizeof(float));
+	error = cudaMemcpyToSymbol(filter_constant, filter, FILTER_SIZE * FILTER_SIZE * sizeof(float));
 	checkError(error, "Failed to copy filter from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
 	// Launch the kernel
 	kernelTime.start();
-	dim3 threadsPerBlock(16, 16);
+	dim3 threadsPerBlock(SMOOTH_BLOCK_WIDTH, SMOOTH_BLOCK_HEIGHT);
 	dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
 	triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, pitch);
 	checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
