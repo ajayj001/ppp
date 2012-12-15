@@ -156,7 +156,8 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 /**
  * Function calling the histogram kernel.
  */
-void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer) {
+void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram,
+NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
 	// Initialize timers
@@ -472,7 +473,8 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 /**
  * Function calling the triangularSmooth kernels.
  */
-void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer) {
+void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter,
+NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
 	// Initialize timers
