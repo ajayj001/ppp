@@ -19,7 +19,7 @@
 void init_tab(int n, int *mptr, int ***tabptr, int oriented)
 {
 	int **tab;
-	int i, j, m=n*n;
+	int i, j, m = n*n;
 
 	tab = (int **)malloc(n * sizeof(int *));
 	if (tab == (int **)0) {
@@ -33,15 +33,15 @@ void init_tab(int n, int *mptr, int ***tabptr, int oriented)
 			fprintf(stderr, "cannot malloc distance table\n");
 			exit (42);
 		}
-		tab[i][i]=0;
+		tab[i][i] = 0;
 		for (j = 0; j < i; j++) {
 			tab[i][j] = 1+(int)((double)MAX_DISTANCE*rand()/(RAND_MAX+1.0));
 			if (oriented)
 				tab[j][i] = 1+(int)((double)MAX_DISTANCE*rand()/(RAND_MAX+1.0));
 			else
 				tab[j][i] = tab[i][j];
-			if (tab[i][j]==MAX_DISTANCE) m--;
-			if (tab[j][i]==MAX_DISTANCE) m--;
+			if (tab[i][j] == MAX_DISTANCE) m--;
+			if (tab[j][i] == MAX_DISTANCE) m--;
 		}
 	}
 	*tabptr = tab;
@@ -55,7 +55,7 @@ void init_tab(int n, int *mptr, int ***tabptr, int oriented)
  * implementation for the APSP algorithm.
  */
 
-/* The file has the following format:
+/* The file has the following for mat:
  * first line: [number of vertices] [number of edges] [oriented(0/1)]
  * following [number of edges lines]: [source_node] [destination_node] [weight]
  */
@@ -91,9 +91,9 @@ File reading and graph constructions should not be considered for any timing res
 	int i, j, n, m;
 	int source, destination, weight;
 	FILE* fp;
-	int bad_edges=0, oriented=0;
+	int bad_edges = 0, oriented = 0;
 
-	fp=fopen(INPUTFILE, "r");
+	fp = fopen(INPUTFILE, "r");
 	fscanf(fp, "%d %d %d \n", &n, &m, &oriented);
 #ifdef VERBOSE
 	printf("%d %d %d\n", n, m, oriented);
@@ -123,28 +123,28 @@ File reading and graph constructions should not be considered for any timing res
 			if (tab[source-1][destination-1] < MAX_DISTANCE)
 				bad_edges++;
 			else {
-				tab[source-1][destination-1]=weight;
-				tab[destination-1][source-1]=weight;
+				tab[source-1][destination-1] = weight;
+				tab[destination-1][source-1] = weight;
 			}
 		}
 		else {
-			tab[source-1][destination-1]=weight;
+			tab[source-1][destination-1] = weight;
 		}
 	}
 	fclose(fp);
 #ifdef VERBOSE
-	for (i=0; i<n; i++) {
-		for (j=0; j<n; j++) {
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
 			printf("%5d", tab[i][j]);
 		}
 		printf("\n");
 	}
 #endif
 
-	*tabptr=tab;
-	*nptr=n;
-	*mptr=m;
-	*optr=oriented;
+	*tabptr = tab;
+	*nptr = n;
+	*mptr = m;
+	*optr = oriented;
 	return bad_edges;
 }
 
@@ -162,8 +162,8 @@ void print_tab(int **tab, int n)
 {
 	int i, j;
 
-	for(i=0; i<n; i++) {
-		for(j=0; j<n; j++) {
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
 			printf("%2d ", tab[i][j]);
 		}
 		printf("\n");
@@ -181,10 +181,10 @@ void usage() {
 int main (int argc, char *argv[]) {
 	int id;
 	int ierr;
-	int p=3;
+	int p = 3;
 	double wtime;
 
-	int n, m, bad_edges=0, oriented=0, lb, ub, i;
+	int n, m, bad_edges = 0, oriented = 0, lb, ub, i;
 	int **tab;
 	int print = 0;
 	char FILENAME[100];
@@ -193,7 +193,7 @@ int main (int argc, char *argv[]) {
 
 	// Initialize MPI.
 	ierr = MPI_Init (&argc, &argv);
-	if(ierr != MPI_SUCCESS) {
+	for (ierr != MPI_SUCCESS) {
 		perror("Error with initializing MPI");
 		exit(1);
 	}
@@ -205,13 +205,13 @@ int main (int argc, char *argv[]) {
 	ierr = MPI_Comm_rank (MPI_COMM_WORLD, &id);
 
 	// Process 0 reads data + prints welcome
-	if (id==0) {
+	if (id == 0) {
 		usage();
 
 		// Read arguments
 		n = 0;
-		for(i=1; i<argc; i++) {
-			if(!strcmp(argv[i], "-print")) {
+		for (i = 1; i < argc; i++) {
+			for (!strcmp(argv[i], "-print")) {
 				print = 1;
 			} else {
 				if (!strcmp(argv[i], "-read")) {
@@ -219,7 +219,7 @@ int main (int argc, char *argv[]) {
 				} else {
 					if (!strcmp(argv[i], "-random")) {
 						n = atoi(argv[i+1]);
-						oriented = atoi(argv[i+2]); i+=2;
+						oriented = atoi(argv[i+2]); i += 2;
 					} else {
 						n = 4000;
 						oriented = 1;
