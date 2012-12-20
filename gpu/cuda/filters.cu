@@ -82,7 +82,8 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 	// Copy the input image from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy2D(inputImage_device, pitch, inputImage, width * sizeof(uchar), width * sizeof(uchar), height * 3, cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(inputImage_device, pitch, inputImage, width * sizeof(uchar), width * sizeof(uchar),
+		height * 3, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy inputImage from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
@@ -97,7 +98,8 @@ void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int he
 
 	// Copy the grayscale image from the device to the host
 	copyFromDeviceTime.start();
-	error = cudaMemcpy2D(grayImage, width, grayImage_device, pitch, width * sizeof(uchar), height, cudaMemcpyDeviceToHost);
+	error = cudaMemcpy2D(grayImage, width, grayImage_device, pitch, width * sizeof(uchar),
+		height, cudaMemcpyDeviceToHost);
 	checkError(error, "Failed to copy grayImage from device to host (error code %s)\n");
 	copyFromDeviceTime.stop();
 
@@ -129,8 +131,8 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 	const uchar4 in = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
 	// Initialize shared histogram
-	const int histogramIndex = blockDim.y * threadIdx.y + threadIdx.x;
 	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
+	const int histogramIndex = blockDim.y * threadIdx.y + threadIdx.x;
 	histogram_shared[histogramIndex] = 0;
 	__syncthreads();
 
@@ -154,7 +156,8 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 /**
  * Function calling the histogram kernel.
  */
-void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer) {
+void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram,
+NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
 	// Initialize timers
@@ -180,7 +183,8 @@ void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar),
+		height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
@@ -257,7 +261,8 @@ contrast1D_pixelValue (uchar &pixel, const uint min, const uint diff) {
  * multiples of at least 4.
  */
 __global__ void
-contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint diff, const size_t pitch) {
+contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint diff,
+const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -314,7 +319,8 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
-	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar), height, cudaMemcpyHostToDevice);
+	error = cudaMemcpy2D(grayImage_device, pitch, grayImage, width * sizeof(uchar), width * sizeof(uchar),
+		height, cudaMemcpyHostToDevice);
 	checkError(error, "Failed to copy grayImage from host to device (error code %s)\n");
 	copyToDeviceTime.stop();
 
@@ -329,7 +335,8 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 
 	// Copy the grayscale image from the device to the host
 	copyFromDeviceTime.start();
-	error = cudaMemcpy2D(grayImage, width, grayImage_device, pitch, width * sizeof(uchar), height, cudaMemcpyDeviceToHost);
+	error = cudaMemcpy2D(grayImage, width, grayImage_device, pitch, width * sizeof(uchar),
+		height, cudaMemcpyDeviceToHost);
 	checkError(error, "Failed to copy grayImage from device to host (error code %s)\n");
 	copyFromDeviceTime.stop();
 
@@ -354,7 +361,8 @@ __constant__ float filter_constant[FILTER_SIZE][FILTER_SIZE];
  * shared memory optimizations and should be used for the borders of the image.
  */
 __global__ void
-triangularSmooth_kernel_borders(uchar *grayImage, uchar *smoothImage, const int width, const int height, const int xOffset, const int yOffset) {
+triangularSmooth_kernel_borders(uchar *grayImage, uchar *smoothImage, const int width, const int height,
+const int xOffset, const int yOffset) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x + xOffset;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y + yOffset;
 
@@ -386,8 +394,10 @@ triangularSmooth_kernel_borders(uchar *grayImage, uchar *smoothImage, const int 
  * Helper function for the triangularSmooth kernel that fetches 1 pixel to shared memory.
  */
 __device__ void
-triangularSmooth_fetchPixel(uchar *image_shared, uchar *image, const int width, const int height, const int x, const int y, const int xOffset, const int yOffset) {
-	image_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2 + yOffset) + (threadIdx.x + 2 + xOffset)] = image[(y + yOffset) * width + (x + xOffset)];
+triangularSmooth_fetchPixel(uchar *image_shared, uchar *image, const int width, const int height,
+const int x, const int y, const int xOffset, const int yOffset) {
+	image_shared[(SMOOTH_BLOCK_WIDTH + 4) * (threadIdx.y + 2 + yOffset) + (threadIdx.x + 2 + xOffset)] =
+		image[(y + yOffset) * width + (x + xOffset)];
 }
 
 /**
@@ -403,22 +413,22 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 	// Allocate shared memory to cache part of image
 	__shared__ uchar grayImage_shared[(SMOOTH_BLOCK_WIDTH + 4) * (SMOOTH_BLOCK_HEIGHT + 4)];
 
-	// All threads fetch one pixel (no offset)
+	// All threads fetch their corresponding pixel (no offset)
 	triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, 0);
 
-	// Left column fetches two border pixels on left
+	// Left 2 columns fetch 2 border pixels on left
 	if (threadIdx.x < 2) {
 		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, -2, 0);
 	}
-	// Top row fetches two border pixels on top
+	// Top 2 rows fetch 2 border pixels on top
 	if (threadIdx.y < 2) {
 		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, -2);
 	}
-	// Right column fetches two border pixels on right
+	// Right 2 columns fetch 2 border pixels on right
 	if (threadIdx.x >= SMOOTH_BLOCK_WIDTH - 2) {
 		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 2, 0);
 	}
-	// Bottom row fetches two border pixels on bottom
+	// Bottom 2 rows fetch 2 border pixels on bottom
 	if (threadIdx.y >= SMOOTH_BLOCK_HEIGHT - 2) {
 		triangularSmooth_fetchPixel(grayImage_shared, grayImage, width, height, x, y, 0, 2);
 	}
@@ -448,10 +458,11 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 	float filterSum = 0.0f;
 	float smoothPix = 0.0f;
 
-	for ( int dy = -2; dy <= 2; dy++ ) {
-		for ( int dx = -2; dx <= 2; dx++ ) {
-			smoothPix += grayImage_shared[(threadIdx.y + dy + 2) * (SMOOTH_BLOCK_WIDTH + 4) + (threadIdx.x + dx + 2)] * filter_constant[dy+2][dx+2];
-			filterSum += filter_constant[dy+2][dx+2];
+	for ( int dy = 0; dy <= 4; dy++ ) {
+		for ( int dx = 0; dx <= 4; dx++ ) {
+			smoothPix += grayImage_shared[(threadIdx.y + dy) * (SMOOTH_BLOCK_WIDTH + 4) + (threadIdx.x + dx)]
+				* filter_constant[dy][dx];
+			filterSum += filter_constant[dy][dx];
 		}
 	}
 
@@ -462,7 +473,8 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 /**
  * Function calling the triangularSmooth kernels.
  */
-void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer) {
+void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter,
+NSTimer &timer) {
 	cudaError_t error = cudaSuccess;
 
 	// Initialize timers
@@ -494,8 +506,10 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 	{
 		// Main image area, fast kernel
 		dim3 threadsPerBlock(SMOOTH_BLOCK_WIDTH, SMOOTH_BLOCK_HEIGHT);
-		dim3 blocksPerGrid(floor((float)(width - 4) / threadsPerBlock.x), floor((float)(height - 4) / threadsPerBlock.y));
-		triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height);
+		dim3 blocksPerGrid(floor((float)(width - 4) / threadsPerBlock.x),
+			floor((float)(height - 4) / threadsPerBlock.y));
+		triangularSmooth_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device,
+			width, height);
 		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel (error code %s)\n");
 		widthProcessed += blocksPerGrid.x * threadsPerBlock.x;
 		heightProcessed += blocksPerGrid.y * threadsPerBlock.y;
@@ -504,7 +518,8 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 		// Left border (width 2), bounds-checking kernel
 		dim3 threadsPerBlock(2, 256);
 		dim3 blocksPerGrid(1, ceil((float)height / threadsPerBlock.y));
-		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, 0);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device,
+			width, height, 0, 0);
 		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
 		widthProcessed += blocksPerGrid.x * threadsPerBlock.x;
 	}
@@ -512,7 +527,8 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 		// Top border (height 2), bounds-checking kernel
 		dim3 threadsPerBlock(256, 2);
 		dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), 1);
-		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, 0);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device,
+			width, height, 0, 0);
 		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
 		heightProcessed += blocksPerGrid.y * threadsPerBlock.y;
 	}
@@ -521,7 +537,8 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 		int blockWidth = width - widthProcessed;
 		dim3 threadsPerBlock(blockWidth, 512 / blockWidth);
 		dim3 blocksPerGrid(1, ceil((float)height / threadsPerBlock.y));
-		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, widthProcessed, 0);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device,
+			width, height, widthProcessed, 0);
 		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
 	}
 	{
@@ -529,7 +546,8 @@ void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, con
 		int blockHeight = height - heightProcessed;
 		dim3 threadsPerBlock(512 / blockHeight, blockHeight);
 		dim3 blocksPerGrid(ceil((float)width / threadsPerBlock.x), 1);
-		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device, width, height, 0, heightProcessed);
+		triangularSmooth_kernel_borders<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, smoothImage_device,
+			width, height, 0, heightProcessed);
 		checkError(cudaGetLastError(), "Failed to launch triangularSmooth_kernel_device (error code %s)\n");
 	}
 	cudaDeviceSynchronize();

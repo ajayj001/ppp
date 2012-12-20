@@ -15,9 +15,11 @@ using std::fixed;
 using std::setprecision;
 
 extern void rgb2gray(uchar *inputImage, uchar *grayImage, const int width, const int height, NSTimer &timer);
-extern void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram, NSTimer &timer);
+extern void histogram1D(uchar *grayImage, uchar *histogramImage, const int width, const int height, uint *histogram,
+	NSTimer &timer);
 extern void contrast1D(uchar *grayImage, const int width, const int height, uint *histogram, NSTimer &timer);
-extern void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height, const float *filter, NSTimer &timer);
+extern void triangularSmooth(uchar *grayImage, uchar *smoothImage, const int width, const int height,
+	const float *filter, NSTimer &timer);
 
 
 int main(int argc, char *argv[]) {
