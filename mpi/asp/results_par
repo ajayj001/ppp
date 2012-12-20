@@ -9,12 +9,12 @@ HELLO_MPI - Master process:
 
   The number of processes is 4.
 
- 1 says: 'Will work on graph!'
  3 says: 'Will work on graph!'
+ 1 says: 'Will work on graph!'
  0 says: 'Will work on graph!'
 
 HELLO_MPI - Master process:
   Normal end of execution: 'Goodbye, world!'
 
-  Elapsed wall clock time = 0.012637 seconds.
+  Elapsed wall clock time = 0.013128 seconds.
  2 says: 'Will work on graph!'

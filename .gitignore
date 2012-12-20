@@ -2,3 +2,6 @@
 
 gpu/bin/*
 gpu/*.bmp
+
+mpi/asp/asp-par
+mpi/asp/asp-seq

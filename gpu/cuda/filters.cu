@@ -209,23 +209,23 @@ NSTimer &timer) {
 
 	// Find maximum in histogram
 	uint max = 0;
-	for ( uint i = 0; i < HISTOGRAM_SIZE; i++ ) {
-		if ( histogram[i] > max ) {
+	for (uint i = 0; i < HISTOGRAM_SIZE; i++) {
+		if (histogram[i] > max) {
 			max = histogram[i];
 		}
 	}
 
 	// Generate histogram image
-	for ( int x = 0; x < HISTOGRAM_SIZE * BAR_WIDTH; x += BAR_WIDTH ) {
+	for (int x = 0; x < HISTOGRAM_SIZE * BAR_WIDTH; x += BAR_WIDTH) {
 		uint value = HISTOGRAM_SIZE - ((histogram[x / BAR_WIDTH] * HISTOGRAM_SIZE) / max);
 
-		for ( uint y = 0; y < value; y++ ) {
-			for ( uint i = 0; i < BAR_WIDTH; i++ ) {
+		for (uint y = 0; y < value; y++) {
+			for (uint i = 0; i < BAR_WIDTH; i++) {
 				histogramImage[(y * HISTOGRAM_SIZE * BAR_WIDTH) + x + i] = 0;
 			}
 		}
-		for ( uint y = value; y < HISTOGRAM_SIZE; y++ ) {
-			for ( uint i = 0; i < BAR_WIDTH; i++ ) {
+		for (uint y = value; y < HISTOGRAM_SIZE; y++) {
+			for (uint i = 0; i < BAR_WIDTH; i++) {
 				histogramImage[(y * HISTOGRAM_SIZE * BAR_WIDTH) + x + i] = 255;
 			}
 		}
@@ -305,13 +305,13 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	// Determine minimum, maximum and their difference of histogram
 	uint i = 0;
 
-	while ( (i < HISTOGRAM_SIZE) && (histogram[i] < CONTRAST_THRESHOLD) ) {
+	while ((i < HISTOGRAM_SIZE) && (histogram[i] < CONTRAST_THRESHOLD)) {
 		i++;
 	}
 	uint min = i;
 
 	i = HISTOGRAM_SIZE - 1;
-	while ( (i > min) && (histogram[i] < CONTRAST_THRESHOLD) ) {
+	while ((i > min) && (histogram[i] < CONTRAST_THRESHOLD)) {
 		i--;
 	}
 	uint max = i;
@@ -373,9 +373,9 @@ const int xOffset, const int yOffset) {
 	float filterSum = 0.0f;
 	float smoothPix = 0.0f;
 
-	for ( int fy = y - 2; fy <= y + 2; fy++ ) {
-		for ( int fx = x - 2; fx <= x + 2; fx++ ) {
-			if ( ((fy < 0) || (fy >= height)) || ((fx < 0) || (fx >= width)) ) {
+	for (int fy = y - 2; fy <= y + 2; fy++) {
+		for (int fx = x - 2; fx <= x + 2; fx++) {
+			if (((fy < 0) || (fy >= height)) || ((fx < 0) || (fx >= width))) {
 				filterItem++;
 				continue;
 			}
@@ -458,8 +458,8 @@ triangularSmooth_kernel(uchar *grayImage, uchar *smoothImage, const int width, c
 	float filterSum = 0.0f;
 	float smoothPix = 0.0f;
 
-	for ( int dy = 0; dy <= 4; dy++ ) {
-		for ( int dx = 0; dx <= 4; dx++ ) {
+	for (int dy = 0; dy <= 4; dy++) {
+		for (int dx = 0; dx <= 4; dx++) {
 			smoothPix += grayImage_shared[(threadIdx.y + dy) * (SMOOTH_BLOCK_WIDTH + 4) + (threadIdx.x + dx)]
 				* filter_constant[dy][dx];
 			filterSum += filter_constant[dy][dx];
