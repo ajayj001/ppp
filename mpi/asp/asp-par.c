@@ -16,8 +16,7 @@
 /* random initialization of the matrix
  * to be used only for testing purposes
  */
-void init_tab(int n, int *mptr, int ***tabptr, int oriented)
-{
+void init_tab(int n, int *mptr, int ***tabptr, int oriented) {
 	int **tab;
 	int i, j, m = n*n;
 
@@ -36,10 +35,11 @@ void init_tab(int n, int *mptr, int ***tabptr, int oriented)
 		tab[i][i] = 0;
 		for (j = 0; j < i; j++) {
 			tab[i][j] = 1+(int)((double)MAX_DISTANCE*rand()/(RAND_MAX+1.0));
-			if (oriented)
+			if (oriented) {
 				tab[j][i] = 1+(int)((double)MAX_DISTANCE*rand()/(RAND_MAX+1.0));
-			else
+			} else {
 				tab[j][i] = tab[i][j];
+			}
 			if (tab[i][j] == MAX_DISTANCE) m--;
 			if (tab[j][i] == MAX_DISTANCE) m--;
 		}
@@ -59,7 +59,7 @@ void init_tab(int n, int *mptr, int ***tabptr, int oriented)
  * first line: [number of vertices] [number of edges] [oriented(0/1)]
  * following [number of edges lines]: [source_node] [destination_node] [weight]
  */
-int read_tab(char *INPUTFILE, int *nptr, int *mptr, int ***tabptr, int *optr)
+int read_tab(char *INPUTFILE, int *nptr, int *mptr, int ***tabptr, int *optr) {
 /*
 INPUTFILE = name of the graph file
 nptr = number of vertices, to be read from the file
@@ -86,7 +86,6 @@ and the parallel implementations. For the parallel implementation, the file is r
 single node, and then distributed to the rest of the participating nodes.
 File reading and graph constructions should not be considered for any timing results.
 */
-{
 	int **tab;
 	int i, j, n, m;
 	int source, destination, weight;
@@ -126,8 +125,7 @@ File reading and graph constructions should not be considered for any timing res
 				tab[source-1][destination-1] = weight;
 				tab[destination-1][source-1] = weight;
 			}
-		}
-		else {
+		} else {
 			tab[source-1][destination-1] = weight;
 		}
 	}
@@ -148,8 +146,7 @@ File reading and graph constructions should not be considered for any timing res
 	return bad_edges;
 }
 
-void free_tab(int **tab, int n)
-{
+void free_tab(int **tab, int n) {
 	int i;
 
 	for (i = 0; i < n; i++) {
@@ -158,8 +155,7 @@ void free_tab(int **tab, int n)
 	free(tab);
 }
 
-void print_tab(int **tab, int n)
-{
+void print_tab(int **tab, int n) {
 	int i, j;
 
 	for (i = 0; i < n; i++) {
@@ -192,17 +188,17 @@ int main (int argc, char *argv[]) {
 	// MPI stuff
 
 	// Initialize MPI.
-	ierr = MPI_Init (&argc, &argv);
-	for (ierr != MPI_SUCCESS) {
+	ierr = MPI_Init(&argc, &argv);
+	if (ierr != MPI_SUCCESS) {
 		perror("Error with initializing MPI");
 		exit(1);
 	}
 
 	// Get the number of processes.
-	ierr = MPI_Comm_size (MPI_COMM_WORLD, &p);
+	ierr = MPI_Comm_size(MPI_COMM_WORLD, &p);
 
 	// Get the individual process ID.
-	ierr = MPI_Comm_rank (MPI_COMM_WORLD, &id);
+	ierr = MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
 	// Process 0 reads data + prints welcome
 	if (id == 0) {
@@ -211,7 +207,7 @@ int main (int argc, char *argv[]) {
 		// Read arguments
 		n = 0;
 		for (i = 1; i < argc; i++) {
-			for (!strcmp(argv[i], "-print")) {
+			if (!strcmp(argv[i], "-print")) {
 				print = 1;
 			} else {
 				if (!strcmp(argv[i], "-read")) {
@@ -238,32 +234,30 @@ int main (int argc, char *argv[]) {
 
 	if (id == 0) {
 		wtime = MPI_Wtime ();
-		printf ("\n");
-		printf ("HELLO_MPI - Master process:\n");
-		printf ("  C/MPI version\n");
-		printf ("  An MPI example program.\n");
-		printf ("\n");
-		printf ("  The number of processes is %d.\n", p);
-		printf ("\n");
+		printf("\n");
+		printf("HELLO_MPI - Master process:\n");
+		printf("  C/MPI version\n");
+		printf("  An MPI example program.\n");
+		printf("\n");
+		printf("  The number of processes is %d.\n", p);
+		printf("\n");
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	
 	// Every process prints a hello.
-	printf (" %d says: 'Will work on graph!'\n", id);
+	printf(" %d says: 'Will work on graph!'\n", id);
 
 	// Process 0 says goodbye.
 	if (id == 0) {
-		printf ("\n");
-		printf ("HELLO_MPI - Master process:\n");
-		printf ("  Normal end of execution: 'Goodbye, world!'\n");
-		wtime = MPI_Wtime () - wtime;
-		printf ("\n");
-		printf ("  Elapsed wall clock time = %f seconds.\n", wtime);
+		printf("HELLO_MPI - Master process:\n");
+		printf("  Normal end of execution: 'Goodbye, world!'\n");
+		wtime = MPI_Wtime() - wtime;
+		printf("  Elapsed wall clock time = %f seconds.\n", wtime);
 	}
 
 	// Shut down MPI.
-	ierr = MPI_Finalize ();
+	ierr = MPI_Finalize();
 
 	return 0;
 }
