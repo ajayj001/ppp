@@ -1,5 +1,5 @@
 /*
- * asp.c:
+ * asp-seq.c:
  * 	All-pairs shortest path implementation based on Floyd's
  * 	algorithms.
  *
