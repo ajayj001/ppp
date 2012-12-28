@@ -292,6 +292,10 @@ int main(int argc, char *argv[]) {
 		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
 	
+	// allocate buffer for graph on non-root processes
+	int num_rows = ub_for_node(n, rank, size) - lb_for_node(n, rank, size);
+	alloc_tab(num_rows, n, &my_tab_buf, &my_tab);
+	
 	// scatter rows to non-root nodes
 	counts = (int*)malloc(size * sizeof(int));
 	displs = (int*)malloc(size * sizeof(int));
@@ -299,7 +303,7 @@ int main(int argc, char *argv[]) {
 		counts[i] = ub_for_node(n, i, size) - lb_for_node(n, i, size);
 		displs[i] = lb_for_node(n, i, size);
 	}
-	ret = MPI_Scatterv(tab, counts, displs, row_type, my_tab, counts[rank], row_type, 0, MPI_COMM_WORLD);
+	ret = MPI_Scatterv(tab_buf, counts, displs, row_type, my_tab_buf, counts[rank], row_type, 0, MPI_COMM_WORLD);
 	if (ret != MPI_SUCCESS) {
 		printf ("Error scattering data. Terminating.\n");
 		MPI_Abort(MPI_COMM_WORLD, ret);
@@ -321,7 +325,7 @@ int main(int argc, char *argv[]) {
 	// Process 0 says goodbye.
 	if (rank == 0) {
 		wtime = MPI_Wtime() - wtime;
-		printf("  Elapsed wall clock time = %f seconds.\n", wtime);
+		printf("Elapsed wall clock time = %f seconds.\n", wtime);
 	}
 
 	// Shut down MPI.
