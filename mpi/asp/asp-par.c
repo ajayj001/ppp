@@ -38,12 +38,12 @@ void alloc_tab(int rows, int cols, int **tab_buf_ptr, int ***tab_ptr) {
 		fprintf(stderr, "malloc failed\n");
 		exit(1);
 	}
-	
+
 	// create a pointer for each row
 	for (i = 0; i < rows; i++) {
 		tab[i] = tab_buf + i * cols;
 	}
-	
+
 	*tab_ptr = tab;
 	*tab_buf_ptr = tab_buf;
 }
@@ -59,7 +59,7 @@ void init_tab(int n, int *mptr, int **tab_buf_ptr, int ***tab_ptr, int oriented)
 	int *tab_buf;
 	int **tab;
 	int i, j, m = n*n;
-	
+
 	alloc_tab(n, n, &tab_buf, &tab);
 
 	for (i = 0; i < n; i++) {
@@ -190,23 +190,6 @@ void print_tab(int **tab, int n) {
 	}
 }
 
-void do_asp(int **tab, int n) {
-	int i, j, k, tmp;
-
-	for (k = 0; k < n; k++) {
-		for (i = 0; i < n; i++) {
-			if (i != k) {
-				for (j = 0; j < n; j++) {
-					tmp = tab[i][k] + tab[k][j];
-					if (tmp < tab[i][j]) {
-						tab[i][j] = tmp;
-					}
-				}
-			}
-		}
-	}
-}
-
 int lb_for_node(int n, int rank, int size) {
 	float rows_per_node = (float) n / size;
 	return floor(rank * rows_per_node);
@@ -218,6 +201,12 @@ int ub_for_node(int n, int rank, int size) {
 	}
 	float rows_per_node = (float) n / size;
 	return floor((rank + 1) * rows_per_node);
+}
+
+int owner_of_row(int k, int n, int size) {
+	int result = floor((float) k * size / n);
+	printf("k: %d -> %d (%.4f)\n", k, result, (float) k* size / n);
+	return result;
 }
 
 /******************** Main program *************************/
@@ -232,18 +221,19 @@ void usage() {
 
 int main(int argc, char *argv[]) {
 	int rank, size, ret;
-	double wtime = 0.0;
+	double starttime = 0.0, endtime = 0.0;
 
-	int n, m, bad_edges = 0, oriented = 0, lb, ub, i;
+	int i, j, k, n, m, lb, ub, tmp;
+	int bad_edges = 0, oriented = 0;
 	int **tab, **my_tab;
-	int *tab_buf, *my_tab_buf;
-	int print = 0;
+	int *tab_buf, *my_tab_buf, *pivot_row;
+	int print = 0, owner;
 	char FILENAME[100];
-	
+
 	MPI_Datatype row_type;
 	int *counts, *displs;
 
-	// Initialize MPI.
+	// initialize MPI.
 	ret  = MPI_Init(&argc, &argv);
 	ret |= MPI_Comm_size(MPI_COMM_WORLD, &size);
 	ret |= MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -252,11 +242,11 @@ int main(int argc, char *argv[]) {
 		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
 
-	// Process 0 reads data + prints welcome
+	// root reads data + prints welcome
 	if (rank == 0) {
 		usage();
 
-		// Read arguments
+		// read arguments
 		n = 0;
 		for (i = 1; i < argc; i++) {
 			if (!strcmp(argv[i], "-print")) {
@@ -276,12 +266,21 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		// Generate or read graph
+		// generate or read graph
 		if (n > 0) {
-			init_tab(n, &m, &tab_buf, &tab, oriented); // last one = oriented or not ...
+			init_tab(n, &m, &tab_buf, &tab, oriented);
 		} else {
 			bad_edges = read_tab(FILENAME, &n, &m, &tab_buf, &tab, &oriented);
 		}
+
+		fprintf(stderr, "Running ASP with %d rows and %d edges (%d are bad)\n", n, m, bad_edges);
+	}
+
+	// broadcast n to all processes
+	ret = MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if (ret != MPI_SUCCESS) {
+		printf ("Error scattering data. Terminating.\n");
+		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
 
 	// define MPI datatypes
@@ -291,15 +290,23 @@ int main(int argc, char *argv[]) {
 		printf ("Error defining row type. Terminating.\n");
 		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
-	
+
+	// define lower (inclusive) and upper (exclusive) bounds
+	lb = lb_for_node(n, rank, size);
+	ub = ub_for_node(n, rank, size);
+
 	// allocate buffer for graph on non-root processes
-	int num_rows = ub_for_node(n, rank, size) - lb_for_node(n, rank, size);
-	alloc_tab(num_rows, n, &my_tab_buf, &my_tab);
-	
+	if (rank != 0) {
+		alloc_tab(ub - lb, n, &my_tab_buf, &my_tab);
+	}
+
 	// scatter rows to non-root nodes
 	counts = (int*)malloc(size * sizeof(int));
 	displs = (int*)malloc(size * sizeof(int));
-	for (i = 0; i < size; i++) {
+	// send nothing to root
+	counts[0] = 0;
+	displs[0] = 0;
+	for (i = 1; i < size; i++) {
 		counts[i] = ub_for_node(n, i, size) - lb_for_node(n, i, size);
 		displs[i] = lb_for_node(n, i, size);
 	}
@@ -309,26 +316,80 @@ int main(int argc, char *argv[]) {
 		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
 
-	// define upper and lower bounds
-	lb = lb_for_node(n, rank, size);
-	ub = ub_for_node(n, rank, size);
-
+	// for root, use main tab as my_tab
 	if (rank == 0) {
-		wtime = MPI_Wtime();
+		my_tab_buf = tab_buf;
+		my_tab = tab;
 	}
 
+	// root record the start time
+	if (rank == 0) {
+		starttime = MPI_Wtime();
+	}
+
+	// allocate memory for a temporary row
+	pivot_row = (int*)malloc(n * sizeof(int));
+
+	// for each row as a pivot
+	for (k = 0; k < n; k++) {
+		owner = owner_of_row(k, n, size);
+		if (rank == owner) {
+			memcpy(pivot_row, my_tab[k - lb], n * sizeof(int));
+		}
+		ret = MPI_Bcast(pivot_row, 1, row_type, owner, MPI_COMM_WORLD);
+		if (ret != MPI_SUCCESS) {
+			printf ("Error scattering data. Terminating.\n");
+			MPI_Abort(MPI_COMM_WORLD, ret);
+		}
+		// proccess every row we own
+		for (i = lb; i < ub; i++) {
+			if (i != k) {
+				for (j = 0; j < n; j++) {
+					tmp = my_tab[i - lb][k] + pivot_row[j];
+					if (tmp < my_tab[i - lb][j]) {
+						my_tab[i - lb][j] = tmp;
+					}
+				}
+			}
+		}
+	}
+
+	// make sure all processes are finished
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	// Every process prints a hello.
-	printf(" %d says: 'Will work on graph!'\n", rank);
-
-	// Process 0 says goodbye.
+	// root records the end time and reports the run time
 	if (rank == 0) {
-		wtime = MPI_Wtime() - wtime;
-		printf("Elapsed wall clock time = %f seconds.\n", wtime);
+		endtime = MPI_Wtime();
+		fprintf(stderr, "ASP took %10.3f seconds\n", endtime - starttime);
 	}
 
-	// Shut down MPI.
+	// gather rows (excluding border rows) from non-root rows
+	ret = MPI_Gatherv(my_tab_buf, counts[rank], row_type, tab_buf, counts, displs, row_type, 0, MPI_COMM_WORLD);
+	if (ret != MPI_SUCCESS) {
+		printf ("Error gathering data. Terminating.\n");
+		MPI_Abort(MPI_COMM_WORLD, ret);
+	}
+
+	// print the table
+	if (rank == 0) {
+		if(print == 1) {
+			print_tab(tab, n);
+		}
+	}
+
+	// free buffers
+	if (rank == 0) {
+		free(tab_buf);
+		free(tab);
+	} else {
+		free(my_tab_buf);
+		free(my_tab);
+	}
+	free(displs);
+	free(counts);
+	free(pivot_row);
+
+	// shut down MPI
 	ret = MPI_Finalize();
 
 	return 0;

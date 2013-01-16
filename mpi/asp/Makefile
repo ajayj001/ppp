@@ -4,7 +4,9 @@ asp-seq: asp-seq.c
 	gcc -Wall -O3 -o asp-seq asp-seq.c
 
 asp-par: asp-par.c
-	mpicc -Wall -O3 -o asp-par asp-par.c	
+	mpicc -Wall -O0 -g -o asp-par asp-par.c	
+
+#mpicc -Wall -O3 -o asp-par asp-par.c	
 
 clean:
 	rm -f *.o *core *~ asp-seq asp-par
