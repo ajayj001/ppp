@@ -1,6 +1,6 @@
 package rubiks.ipl;
 
-import rubiks.sequential.*;
+import rubiks.ipl.*;
 
 /**
  * Cache for Cube objects. Using this cache instead of "new Cube()" for every

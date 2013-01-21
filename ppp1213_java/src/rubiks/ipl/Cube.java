@@ -1,6 +1,6 @@
 package rubiks.ipl;
 
-import rubiks.sequential.*;
+import rubiks.ipl.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
