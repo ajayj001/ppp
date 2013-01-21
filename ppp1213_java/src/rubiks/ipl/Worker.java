@@ -11,7 +11,7 @@ import ibis.ipl.IbisIdentifier;
  * @author janlugt
  */
 public class Worker {
-	void run(IbisIdentifier server) {
+	void run(IbisIdentifier master) {
 		System.out.println("I'm just a worker.");
 	}
 }

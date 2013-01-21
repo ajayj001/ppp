@@ -10,7 +10,7 @@ package rubiks.ipl;
  */
 public class Master {
 	
-	public static final boolean PRINT_SOLUTION = false;
+	public final boolean PRINT_SOLUTION = false;
 
     /**
      * Recursive function to find a solution for a given cube. Only searches to
@@ -22,7 +22,7 @@ public class Master {
      *            cache of cubes used for new cube objects
      * @return the number of solutions found
      */
-    private static int solutions(Cube cube, CubeCache cache) {
+    private int solutions(Cube cube, CubeCache cache) {
         if (cube.isSolved()) {
             return 1;
         }
@@ -61,7 +61,7 @@ public class Master {
      * @param cube
      *            the cube to solve
      */
-    private static void solve(Cube cube) {
+    private void solve(Cube cube) {
         // cache used for cube objects. Doing new Cube() for every move
         // overloads the garbage collector
         CubeCache cache = new CubeCache(cube.getSize());
@@ -83,28 +83,22 @@ public class Master {
                 + bound + " steps");
     }
 
-    public static void printUsage() {
+    public void printUsage() {
         System.out.println("Rubiks Cube solver");
-        System.out.println("");
-        System.out
-                .println("Does a number of random twists, then solves the rubiks cube with a simple");
-        System.out
-                .println(" brute-force approach. Can also take a file as input");
-        System.out.println("");
+        System.out.println();
+        System.out.println("Does a number of random twists, then solves the rubiks cube with a simple");
+        System.out.println(" brute-force approach. Can also take a file as input");
+        System.out.println();
         System.out.println("USAGE: Rubiks [OPTIONS]");
-        System.out.println("");
+        System.out.println();
         System.out.println("Options:");
         System.out.println("--size SIZE\t\tSize of cube (default: 3)");
-        System.out
-                .println("--twists TWISTS\t\tNumber of random twists (default: 11)");
-        System.out
-                .println("--seed SEED\t\tSeed of random generator (default: 0");
-        System.out
-                .println("--threads THREADS\t\tNumber of threads to use (default: 1, other values not supported by sequential version)");
-        System.out.println("");
-        System.out
-                .println("--file FILE_NAME\t\tLoad cube from given file instead of generating it");
-        System.out.println("");
+        System.out.println("--twists TWISTS\t\tNumber of random twists (default: 11)");
+        System.out.println("--seed SEED\t\tSeed of random generator (default: 0");
+        System.out.println("--threads THREADS\t\tNumber of threads to use (default: 1, other values not supported by sequential version)");
+        System.out.println();
+        System.out.println("--file FILE_NAME\t\tLoad cube from given file instead of generating it");
+        System.out.println();
     }
 
     /**
@@ -113,7 +107,7 @@ public class Master {
      * @param arguments
      *            list of arguments
      */
-    public static void run(String[] arguments) {
+    public void run(String[] arguments) {
         Cube cube = null;
 
         // default parameters of puzzle

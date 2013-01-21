@@ -42,13 +42,13 @@ public class Rubiks {
                 requestPortType, replyPortType);
 
         // Elect a server
-        IbisIdentifier server = myIbis.registry().elect("Server");
+        IbisIdentifier master = myIbis.registry().elect("Master");
 
         // If I am the server, run server, else run client.
-        if (server.equals(myIbis.identifier())) {
+        if (master.equals(myIbis.identifier())) {
             new Master().run(arguments);
         } else {
-            new Worker().run(server);
+            new Worker().run(master);
         }
 
         // End ibis.
