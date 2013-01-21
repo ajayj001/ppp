@@ -1,7 +1,0 @@
-!!!
-!!!
-!!!
-Run the asp program with the following parameters. 
- -read filename :: reads the graph from a file.
- -random N 0/1 :: generates a NxN graph, randomly. 
-               :: if 1, the graph is oriented, otherwise it is not oriented

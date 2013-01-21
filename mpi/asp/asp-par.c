@@ -204,9 +204,7 @@ int ub_for_node(int n, int rank, int size) {
 }
 
 int owner_of_row(int k, int n, int size) {
-	int result = floor((float) k * size / n);
-	printf("k: %d -> %d (%.4f)\n", k, result, (float) k* size / n);
-	return result;
+	return (size * (k + 1) - 1) / n;
 }
 
 /******************** Main program *************************/
