@@ -8,3 +8,4 @@ mpi/asp/asp-seq
 
 ppp1213_java/*.out
 ppp1213_java/*.err
+ppp1213_java/lib/*

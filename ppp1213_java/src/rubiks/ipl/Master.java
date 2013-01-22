@@ -1,87 +1,55 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package rubiks.ipl;
 
-/**
- *
- * @author janlugt
- */
-public class Master {
+import ibis.ipl.*;
+import java.io.IOException;
+import java.util.HashMap;
+
+public class Master implements MessageUpcall {
+
+	private final Rubiks parent;
+	private final SendPortMap sendports;
 	
-	public final boolean PRINT_SOLUTION = false;
-
-    /**
-     * Recursive function to find a solution for a given cube. Only searches to
-     * the bound set in the cube object.
-     * 
-     * @param cube
-     *            cube to solve
-     * @param cache
-     *            cache of cubes used for new cube objects
-     * @return the number of solutions found
-     */
-    private int solutions(Cube cube, CubeCache cache) {
-        if (cube.isSolved()) {
-            return 1;
-        }
-
-        if (cube.getTwists() >= cube.getBound()) {
-            return 0;
-        }
-
-        // generate all possible cubes from this one by twisting it in
-        // every possible way. Gets new objects from the cache
-        Cube[] children = cube.generateChildren(cache);
-
-        int result = 0;
-
-        for (Cube child : children) {
-            // recursion step
-            int childSolutions = solutions(child, cache);
-            if (childSolutions > 0) {
-                result += childSolutions;
-                if (PRINT_SOLUTION) {
-                    child.print(System.err);
-                }
-            }
-            // put child object in cache
-            cache.put(child);
-        }
-
-        return result;
-    }
-
-    /**
-     * Solves a Rubik's cube by iteratively searching for solutions with a
-     * greater depth. This guarantees the optimal solution is found. Repeats all
-     * work for the previous iteration each iteration though...
-     * 
-     * @param cube
-     *            the cube to solve
-     */
-    private void solve(Cube cube) {
-        // cache used for cube objects. Doing new Cube() for every move
-        // overloads the garbage collector
-        CubeCache cache = new CubeCache(cube.getSize());
-        int bound = 0;
-        int result = 0;
-
-        System.out.print("Bound now:");
-
-        while (result == 0) {
-            bound++;
-            cube.setBound(bound);
-
-            System.out.print(" " + bound);
-            result = solutions(cube, cache);
-        }
-
-        System.out.println();
-        System.out.println("Solving cube possible in " + result + " ways of "
-                + bound + " steps");
-    }
+	Master(Rubiks parent) throws IOException {
+		this.parent = parent;
+		this.sendports = new SendPortMap();
+	}
+	
+	class SendPortMap extends HashMap<IbisIdentifier, SendPort> {
+		SendPort get(IbisIdentifier destination) throws IOException {
+			SendPort result = super.get(destination);
+			if (result == null) {
+				System.out.println("Master: result null");
+				result = parent.ibis.createSendPort(parent.explicitPortType);
+				System.out.println("Master: created new port");
+				System.out.println("name: \"" + destination.name() + "\"");
+				result.connect(destination, "worker");
+				System.out.println("Master: port connected");
+				sendports.put(destination, result);
+				System.out.println("Master: saved sendport");
+			}
+			return result;
+		}
+	}
+	
+	void configure() throws IOException {
+		// Create a receive port and enable it
+        ReceivePort receiver = parent.ibis.createReceivePort(parent.upcallPortType, "master", this);
+        receiver.enableConnections();
+        receiver.enableMessageUpcalls();
+	}
+	
+	@Override
+	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+		System.out.println("Master: received message");
+		SendPort port = sendports.get(rm.origin().ibisIdentifier());
+		System.out.println("Master: created sendport");
+		WriteMessage wm = port.newMessage();
+		System.out.println("Master: created message");
+		wm.writeObject(new Cube(3, 11, 0));
+		System.out.println("Master: wrote cube to message");
+		wm.finish();
+		System.out.println("Master: sent message");
+	}
 
     public void printUsage() {
         System.out.println("Rubiks Cube solver");
@@ -107,7 +75,11 @@ public class Master {
      * @param arguments
      *            list of arguments
      */
-    public void run(String[] arguments) {
+    public void run(String[] arguments) throws IOException {
+		
+		// configure Ibis ports
+		configure();
+		
         Cube cube = null;
 
         // default parameters of puzzle
@@ -163,7 +135,7 @@ public class Master {
         
         // solve
         long start = System.currentTimeMillis();
-        solve(cube);
+        Solver.solve(cube);
         long end = System.currentTimeMillis();
 
         // NOTE: this is printed to standard error! The rest of the output is
