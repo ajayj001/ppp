@@ -38,10 +38,10 @@ public class Rubiks {
 
         // If I am the master, run master, else run worker
         if (master.equals(ibis.identifier())) {
-			System.out.println("Master: hello");
+			System.out.println("Master: " + ibis.identifier());
             new Master(this).run(arguments);
         } else {
-			System.out.println("Worker: hello");
+			System.out.println("Worker: " + ibis.identifier());
             new Worker(this).run(master);
         }
 

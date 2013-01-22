@@ -1,6 +1,11 @@
 package rubiks.ipl;
 
-import ibis.ipl.*;
+import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
+import ibis.ipl.ReadMessage;
+import ibis.ipl.ReceivePort;
+import ibis.ipl.SendPort;
+import ibis.ipl.WriteMessage;
 import java.io.IOException;
 import java.util.HashMap;
 
@@ -20,8 +25,7 @@ public class Master implements MessageUpcall {
 			if (result == null) {
 				System.out.println("Master: result null");
 				result = parent.ibis.createSendPort(parent.explicitPortType);
-				System.out.println("Master: created new port");
-				System.out.println("name: \"" + destination.name() + "\"");
+				System.out.println("Master: created new port to " + destination);
 				result.connect(destination, "worker");
 				System.out.println("Master: port connected");
 				sendports.put(destination, result);
@@ -40,15 +44,12 @@ public class Master implements MessageUpcall {
 	
 	@Override
 	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
-		System.out.println("Master: received message");
-		SendPort port = sendports.get(rm.origin().ibisIdentifier());
-		System.out.println("Master: created sendport");
+		IbisIdentifier sender = rm.origin().ibisIdentifier();
+		rm.finish();
+		SendPort port = sendports.get(sender);
 		WriteMessage wm = port.newMessage();
-		System.out.println("Master: created message");
 		wm.writeObject(new Cube(3, 11, 0));
-		System.out.println("Master: wrote cube to message");
 		wm.finish();
-		System.out.println("Master: sent message");
 	}
 
     public void printUsage() {
@@ -110,7 +111,7 @@ public class Master implements MessageUpcall {
             } else {
                 System.err.println("unknown option : " + arguments[i]);
                 printUsage();
-                System.exit(1);
+                System.exit(1); //TODO shut down workers
             }
         }
 
