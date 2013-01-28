@@ -245,9 +245,6 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 */
 	public void run(String[] arguments) throws IOException, InterruptedException {
 
-		// configure Ibis ports
-		configure();
-
 		Cube cube = null;
 
 		// default parameters of puzzle
@@ -300,7 +297,9 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				+ cube.getSize() + ", twists = " + twists + ", seed = " + seed);
 		cube.print(System.out);
 		System.out.flush();
-
+		
+		// configure Ibis ports
+		configure();
 
 		// solve
 		long start = System.currentTimeMillis();
