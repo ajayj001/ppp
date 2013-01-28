@@ -278,7 +278,8 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			} else {
 				System.err.println("unknown option : " + arguments[i]);
 				printUsage();
-				System.exit(1); //TODO shut down workers
+				parent.ibis.end();
+				System.exit(1);
 			}
 		}
 
