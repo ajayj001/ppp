@@ -10,53 +10,53 @@ package rubiks.sequential;
  */
 public class CubeCache {
 
-    public static final int MAX_CACHE_SIZE = 10 * 1024;
-    
-    private final int cubeSize;
+	public static final int MAX_CACHE_SIZE = 10 * 1024;
 
-    private final Cube[] cache;
+	private final int cubeSize;
 
-    private int currentSize;
+	private final Cube[] cache;
 
-    
-    /**
-     * Constructor.
-     * 
-     * @param cacheSize size of the cache.
-     * @param cubeSize size of the cubes in the cache.
-     */
-    public CubeCache(int cubeSize) {
-        this.cubeSize = cubeSize;
-        cache = new Cube[MAX_CACHE_SIZE];
-        currentSize = 0;
-    }
+	private int currentSize;
 
-    /**
-     * Add given cube to the cache.
-     * 
-     * @param cube cube to add to the cache
-     */
-    public void put(Cube cube) {
-        if (currentSize >= cache.length) {
-            // cache full
-            return;
-        }
-        cache[currentSize] = cube;
-        currentSize++;
-    }
 
-    /**
-     * Get a cube from the cache.
-     * 
-     * @return a cube from the cache
-     */
-    public Cube get() {
-        if (currentSize == 0) {
-            return new Cube(cubeSize);
-        }
+	/**
+	 * Constructor.
+	 * 
+	 * @param cacheSize size of the cache.
+	 * @param cubeSize size of the cubes in the cache.
+	 */
+	public CubeCache(int cubeSize) {
+		this.cubeSize = cubeSize;
+		cache = new Cube[MAX_CACHE_SIZE];
+		currentSize = 0;
+	}
 
-        currentSize--;
-        return cache[currentSize];
-    }
+	/**
+	 * Add given cube to the cache.
+	 * 
+	 * @param cube cube to add to the cache
+	 */
+	public void put(Cube cube) {
+		if (currentSize >= cache.length) {
+			// cache full
+			return;
+		}
+		cache[currentSize] = cube;
+		currentSize++;
+	}
+
+	/**
+	 * Get a cube from the cache.
+	 * 
+	 * @return a cube from the cache
+	 */
+	public Cube get() {
+		if (currentSize == 0) {
+			return new Cube(cubeSize);
+		}
+
+		currentSize--;
+		return cache[currentSize];
+	}
 
 }
