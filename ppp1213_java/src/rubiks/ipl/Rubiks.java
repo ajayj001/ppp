@@ -2,6 +2,7 @@ package rubiks.ipl;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisCapabilities;
+import ibis.ipl.IbisConfigurationException;
 import ibis.ipl.IbisCreationFailedException;
 import ibis.ipl.IbisFactory;
 import ibis.ipl.IbisIdentifier;
@@ -24,7 +25,7 @@ public class Rubiks {
 			PortType.RECEIVE_EXPLICIT, PortType.CONNECTION_ONE_TO_ONE);
 
 	public final static IbisCapabilities ibisCapabilities = new IbisCapabilities(
-			IbisCapabilities.ELECTIONS_STRICT);
+			IbisCapabilities.ELECTIONS_STRICT, IbisCapabilities.TERMINATION);
 
 	public final Ibis ibis;
 
@@ -49,11 +50,14 @@ public class Rubiks {
 
 		// End ibis
 		ibis.end();
+		System.exit(0);
 	}
 
 	public static void main(String[] arguments) {
 		try {
 			new Rubiks().run(arguments);
+		} catch (IbisConfigurationException e) {
+			// do nothing, mainly errors that the pool is already closed
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
 		}

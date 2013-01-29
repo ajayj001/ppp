@@ -40,11 +40,17 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		this.solutions = new AtomicInteger(0);
 	}
 
-	void configure() throws IOException {
-		// Create a receive port and enable it
+	void openPorts() throws IOException {
 		ReceivePort receiver = parent.ibis.createReceivePort(Rubiks.upcallPortType, "master", this, this, new Properties());
 		receiver.enableConnections();
 		receiver.enableMessageUpcalls();
+	}
+	
+	void closePorts() throws IOException {
+		System.out.println("closing");
+		for (SendPort sender : sendports.values()) {
+			sender.close();
+		}
 	}
 	
 	@Override
@@ -54,7 +60,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			SendPort sender = parent.ibis.createSendPort(Rubiks.explicitPortType);
 			sender.connect(worker, "worker");
 			sendports.put(worker, sender);
-		} catch (IOException ex) {
+		} catch (IOException e) {
 		}
 		return true;
 	}
@@ -66,7 +72,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			SendPort sender = sendports.get(worker);
 			sender.close();
 			sendports.remove(worker);
-		} catch (IOException ex) {
+		} catch (IOException e) {
 		}
 	}
 
@@ -84,14 +90,10 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		Cube cube = null;
 		try {
 			synchronized (deque) {
-				while (status != Status.PROCESSING_DEQUE || status == Status.DONE) {
+				while (status != Status.PROCESSING_DEQUE) {
 					deque.wait();
 				}
-				if (status == Status.DONE) {
-					cube = null;
-				} else {
-					cube = deque.takeLast();
-				}
+				cube = deque.takeLast();
 				if (deque.isEmpty()) {
 					synchronized (lock) {
 						status = Status.DEQUE_EMPTY;
@@ -99,7 +101,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 					System.out.println("status: deque empty");
 				}
 			}
-		} catch (InterruptedException ex) {
+		} catch (InterruptedException e) {
 		}
 		return cube;
 	}
@@ -121,9 +123,9 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		System.out.println("Master: got request with value " + requestValue);
 
 		// Get the port to the sender and send a message
+		Cube replyValue = getLast(); // may block for some time
 		SendPort port = sendports.get(sender);
 		WriteMessage wm = port.newMessage();
-		Cube replyValue = getLast(); // may block for some time
 		wm.writeObject(replyValue);
 		wm.finish();
 		
@@ -190,7 +192,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * @param cube
 	 *			the cube to solve
 	 */
-	void solve(Cube cube) throws InterruptedException {
+	void solve(Cube cube) throws InterruptedException, IOException {
 		// cache used for cube objects. Doing new Cube() for every move
 		// overloads the garbage collector
 		CubeCache cache = new CubeCache(cube.getSize());
@@ -212,6 +214,8 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			waitForWorkers();
 		}
 		status = Status.DONE;
+		parent.ibis.registry().terminate();
+		closePorts();
 		System.out.println("status: done");
 
 		System.out.println();
@@ -244,7 +248,6 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 *			list of arguments
 	 */
 	public void run(String[] arguments) throws IOException, InterruptedException {
-
 		Cube cube = null;
 
 		// default parameters of puzzle
@@ -275,7 +278,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			} else {
 				System.err.println("unknown option : " + arguments[i]);
 				printUsage();
-				parent.ibis.end();
+				parent.ibis.registry().terminate();
 				System.exit(1);
 			}
 		}
@@ -299,7 +302,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		System.out.flush();
 		
 		// configure Ibis ports
-		configure();
+		openPorts();
 
 		// solve
 		long start = System.currentTimeMillis();
