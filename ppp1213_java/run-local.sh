@@ -4,7 +4,7 @@ POOLSIZE=1
 POOLNAME=pool-$(date +%Y%m%d%H%M%S)-$(date +%N)
 
 for (( i=0; i < $POOLSIZE; i++ )); do
-	bin/java-run -ea -Dibis.pool.name=$POOLNAME -Dibis.pool.size=$POOLSIZE -Dibis.server.address=localhost:4321 rubiks.ipl.Rubiks &
+	bin/java-run -Dibis.pool.name=$POOLNAME -Dibis.pool.size=$POOLSIZE -Dibis.server.address=localhost:4321 rubiks.ipl.Rubiks &
 done
 
 wait
