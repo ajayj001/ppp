@@ -1,8 +1,8 @@
 #!/bin/bash
 
-POOLSIZE=32
+POOLSIZE=$1
 POOLNAME=pool-$(date +%Y%m%d%H%M%S)-$(date +%N)
 
-prun -v -1 -np $POOLSIZE bin/java-run -Dibis.pool.name=$POOLNAME -Dibis.pool.size=$POOLSIZE -Dibis.server.address=fs0:4321 rubiks.ipl.Rubiks
+prun -v -1 -np $POOLSIZE bin/java-run -Dibis.pool.name=$POOLNAME -Dibis.pool.size=$POOLSIZE -Dibis.server.address=fs0:4321 rubiks.ipl.Rubiks --twists 12
 
 wait
