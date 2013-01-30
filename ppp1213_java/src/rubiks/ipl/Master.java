@@ -9,10 +9,10 @@ import ibis.ipl.SendPort;
 import ibis.ipl.SendPortIdentifier;
 import ibis.ipl.WriteMessage;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Properties;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Master implements MessageUpcall, ReceivePortConnectUpcall {
@@ -22,8 +22,9 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	}
 	
 	private final Rubiks parent;
-	private final HashMap<IbisIdentifier, SendPort> sendports;
-	private final BlockingDeque<Cube> deque;
+	private final HashMap<IbisIdentifier, SendPort> senders;
+	private ReceivePort receiver;
+	private final Deque<Cube> deque;
 	private final Object lock;
 	private Status status;
 	private final AtomicInteger busyWorkers;
@@ -31,74 +32,98 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 
 	Master(Rubiks parent) throws IOException {
 		this.parent = parent;
-		this.sendports = new HashMap<IbisIdentifier, SendPort>();
-		this.deque = new LinkedBlockingDeque<Cube>();
+		this.senders = new HashMap<IbisIdentifier, SendPort>();
+		this.deque = new ArrayDeque<Cube>();
 		this.busyWorkers = new AtomicInteger(0);
 		this.status = Status.INITIALIZING;
-		System.out.println("status: initializing");
 		this.lock = new Object();
 		this.solutions = new AtomicInteger(0);
 	}
 
-	void openPorts() throws IOException {
-		ReceivePort receiver = parent.ibis.createReceivePort(Rubiks.upcallPortType, "master", this, this, new Properties());
+	/**
+	 * Creates a receive port to receive cube requests from workers.
+	 * @throws IOException 
+	 */
+	private void openPorts() throws IOException {
+		receiver = parent.ibis.createReceivePort(Rubiks.portType, "master",
+				this, this, new Properties());
 		receiver.enableConnections();
 		receiver.enableMessageUpcalls();
 	}
 	
-	void closePorts() throws IOException {
-		System.out.println("closing");
-		for (SendPort sender : sendports.values()) {
+	/**
+	 * Sends a termination message to all connected workers and closes all
+	 * ports.
+	 * @throws IOException 
+	 */
+	public void closePorts() throws IOException {
+		for (SendPort sender : senders.values()) {
+			WriteMessage wm = sender.newMessage();
+			wm.writeBoolean(true);
+			wm.finish();
 			sender.close();
 		}
+		receiver.close();
 	}
 	
+	/**
+	 * If a connection to the receive port is established, create a sendport in
+	 * the reverse direction.
+	 */
 	@Override
 	public boolean gotConnection(ReceivePort rp, SendPortIdentifier spi) {
 		try {
 			IbisIdentifier worker = spi.ibisIdentifier();
-			SendPort sender = parent.ibis.createSendPort(Rubiks.explicitPortType);
+			SendPort sender = parent.ibis.createSendPort(Rubiks.portType);
 			sender.connect(worker, "worker");
-			sendports.put(worker, sender);
+			senders.put(worker, sender);
 		} catch (IOException e) {
 		}
 		return true;
 	}
 
+	/**
+	 * If a connection to the receive port is lost, close the reverse
+	 * connection.
+	 */
 	@Override
 	public void lostConnection(ReceivePort rp, SendPortIdentifier spi, Throwable thrwbl) {
 		try {
 			IbisIdentifier worker = spi.ibisIdentifier();
-			SendPort sender = sendports.get(worker);
+			SendPort sender = senders.get(worker);
 			sender.close();
-			sendports.remove(worker);
+			senders.remove(worker);
 		} catch (IOException e) {
 		}
 	}
 
-	void waitForWorkers() throws InterruptedException {
+	/**
+	 * Waits until all workers have finished their work and sent the number of
+	 * solutions.
+	 */
+	private void waitForWorkers() throws InterruptedException {
 		synchronized (lock) {
 			status = Status.WAITING_FOR_WORKERS;
-			System.out.println("status: waiting for workers");
 			while (busyWorkers.get() != 0) {
 				lock.wait();
 			}
 		}
 	}
 
-	Cube getLast() {
+	/**
+	 * Get the last cube from the deque, which will have less twists and thus
+	 * more work on average than cubes from the start of the deque.
+	 */
+	private Cube getLast() {
 		Cube cube = null;
 		try {
 			synchronized (deque) {
 				while (status != Status.PROCESSING_DEQUE) {
 					deque.wait();
 				}
-				cube = deque.takeLast();
+				cube = deque.removeLast();
 				if (deque.isEmpty()) {
-					synchronized (lock) {
-						status = Status.DEQUE_EMPTY;
-					}
-					System.out.println("status: deque empty");
+					status = Status.DEQUE_EMPTY;
 				}
 			}
 		} catch (InterruptedException e) {
@@ -106,81 +131,76 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		return cube;
 	}
 	
-	@Override
-	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
-		// Process the incoming message
-		IbisIdentifier sender = rm.origin().ibisIdentifier();
-		int requestValue = rm.readInt();
-		rm.finish();
-		synchronized (lock) {
-			if (requestValue != Rubiks.DUMMY_VALUE) {
-				solutions.addAndGet(requestValue);
-				busyWorkers.decrementAndGet();
-				System.out.println("Busyworkers: " + busyWorkers);
-				lock.notifyAll();
-			}
-		}
-		System.out.println("Master: got request with value " + requestValue);
-
-		// Get the port to the sender and send a message
-		Cube replyValue = getLast(); // may block for some time
-		SendPort port = sendports.get(sender);
+	/**
+	 * Send a cube to a worker.
+	 */
+	void sendCube(Cube cube, IbisIdentifier destination) throws IOException {
+		SendPort port = senders.get(destination);
 		WriteMessage wm = port.newMessage();
-		wm.writeObject(replyValue);
+		wm.writeBoolean(false);
+		wm.writeObject(cube);
 		wm.finish();
-		
-		// Increase or decrease the number of workers we are waiting for
-		if (replyValue != null) {
-			busyWorkers.incrementAndGet();
-			System.out.println("Busyworkers: " + busyWorkers);
-			System.out.println("Master: sent a cube with " + replyValue.getTwists() + " twists");
-		}
 	}
 
 	/**
-	 * Recursive function to find a solution for a given cube. Only searches to
-	 * the bound set in the cube object.
-	 * 
-	 * @param cube
-	 *			cube to solve
-	 * @param cache
-	 *			cache of cubes used for new cube objects
-	 * @return the number of solutions found
+	 * Processes a cube request / notification of found solutions from a worker.
 	 */
-	void processFirst(CubeCache cache) {
-		Cube cube = deque.pollFirst();
-		if (cube == null) {
-			status = Status.DEQUE_EMPTY;
-			System.out.println("status: deque empty");
-			System.out.println("Master: Got a null from the deque");
-			return;
-		}
-		
-		if (cube.isSolved()) {
-			solutions.incrementAndGet();
-			cache.put(cube);
-			return;
-		}
-
-		if (cube.getTwists() >= cube.getBound()) {
-			cache.put(cube);
-			return;
-		}
-		
-		synchronized (deque) {
-			if (cube.getTwists() > 0 && status == Status.FILLING_DEQUE) {
-				status = Status.PROCESSING_DEQUE;
-				System.out.println("status: processing deque");
-				deque.notifyAll();
+	@Override
+	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+		// Process the incoming message and decrease the number of busy workers
+		IbisIdentifier sender = rm.origin().ibisIdentifier();
+		int requestValue = rm.readInt();
+		rm.finish();
+		if (requestValue != Rubiks.DUMMY_VALUE) {
+			synchronized (lock) {
+				solutions.addAndGet(requestValue);
+				busyWorkers.decrementAndGet();
+				lock.notifyAll();
 			}
 		}
 
-		// generate all possible cubes from this one by twisting it in
-		// every possible way. Gets new objects from the cache
-		Cube[] children = cube.generateChildren(cache);
+		// Get the port to the sender and send the cube
+		Cube replyValue = getLast(); // may block for some time
+		sendCube(replyValue, sender);
+		
+		// Increase the number of workers we are waiting for
+		busyWorkers.incrementAndGet();
+	}
 
-		for (Cube child : children) {
-			deque.addFirst(child);
+	/**
+	 * Processes the first cube from the deque. This version is not recursive
+	 * and slightly slower that the recursive one, but e
+	 */
+	private void processFirst(CubeCache cache) {
+		synchronized (deque) {
+			Cube cube = deque.pollFirst();
+			if (cube == null) {
+				status = Status.DEQUE_EMPTY;
+				return;
+			}
+
+			if (cube.isSolved()) {
+				solutions.incrementAndGet();
+				cache.put(cube);
+				return;
+			}
+
+			if (cube.getTwists() >= cube.getBound()) {
+				cache.put(cube);
+				return;
+			}
+		
+			if (cube.getTwists() > 0 && status == Status.FILLING_DEQUE) {
+				status = Status.PROCESSING_DEQUE;
+				deque.notifyAll();
+			}
+			// generate all possible cubes from this one by twisting it in
+			// every possible way. Gets new objects from the cache
+			Cube[] children = cube.generateChildren(cache);
+
+			for (Cube child : children) {
+				deque.addFirst(child);
+			}
 		}
 	}
 
@@ -192,7 +212,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * @param cube
 	 *			the cube to solve
 	 */
-	void solve(Cube cube) throws InterruptedException, IOException {
+	private void solve(Cube cube) throws InterruptedException, IOException {
 		// cache used for cube objects. Doing new Cube() for every move
 		// overloads the garbage collector
 		CubeCache cache = new CubeCache(cube.getSize());
@@ -202,7 +222,6 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 
 		while (solutions.get() == 0) {
 			status = Status.FILLING_DEQUE;
-			System.out.println("status: filling deque");
 			bound++;
 			cube.setBound(bound);
 			deque.addFirst(cube);
@@ -216,14 +235,13 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		status = Status.DONE;
 		parent.ibis.registry().terminate();
 		closePorts();
-		System.out.println("status: done");
 
 		System.out.println();
 		System.out.println("Solving cube possible in " + solutions + " ways of "
 				+ bound + " steps");
 	}
 
-	void printUsage() {
+	private void printUsage() {
 		System.out.println("Rubiks Cube solver");
 		System.out.println();
 		System.out.println("Does a number of random twists, then solves the rubiks cube with a simple");
@@ -291,6 +309,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				cube = new Cube(fileName);
 			} catch (Exception e) {
 				System.err.println("Cannot load cube from file: " + e);
+				parent.ibis.registry().terminate();
 				System.exit(1);
 			}
 		}
@@ -301,7 +320,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		cube.print(System.out);
 		System.out.flush();
 		
-		// configure Ibis ports
+		// open Ibis ports
 		openPorts();
 
 		// solve

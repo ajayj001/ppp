@@ -1,85 +1,81 @@
 package rubiks.ipl;
 
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
 import ibis.ipl.ReceivePort;
-import ibis.ipl.RegistryEventHandler;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
-import java.io.EOFException;
 import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
-public class Worker implements RegistryEventHandler {
+public class Worker implements MessageUpcall {
 
 	private final Rubiks parent;
 	private CubeCache cache;
 	private ReceivePort receiver;
 	private SendPort sender;
-	private boolean running;
+	private final Semaphore finished;
 
 	Worker(Rubiks parent) {
 		this.parent = parent;
 		this.cache = null;
-		this.running = true;
+		this.finished = new Semaphore(0);
 	}
 
 	void openPorts(IbisIdentifier master) throws IOException {
-		// Create a reveive port and enable it
-		receiver = parent.ibis.createReceivePort(Rubiks.explicitPortType, "worker");
+		receiver = parent.ibis.createReceivePort(Rubiks.portType, "worker", this);
 		receiver.enableConnections();
+		receiver.enableMessageUpcalls();
 
-		// Create a send port for sending requests and connect
-		sender = parent.ibis.createSendPort(Rubiks.upcallPortType);
+		sender = parent.ibis.createSendPort(Rubiks.portType);
 		sender.connect(master, "master");
 	}
-	
-	void closePorts() throws IOException {
+
+	public void closePorts() throws IOException {
 		sender.close();
 		receiver.close();
+		finished.release();
 	}
-	
-	void run(IbisIdentifier master) throws IOException, ClassNotFoundException {
+
+	void run(IbisIdentifier master) throws IOException, ClassNotFoundException, InterruptedException {
 		openPorts(master);
 
 		// Send an initialization message
-		sendValue(Rubiks.DUMMY_VALUE);
-		
-		// Send a message, receive a cube, solve it and reply number of solutions
-		try {
-			while (running) {
-				Cube cube = receiveCube();
-				if (cache == null) {
-					cache = new CubeCache(cube.getSize());
-				}
-				sendValue(solutions(cube, cache));
-			}
-		} catch (EOFException e) {
-			System.out.println(parent.ibis.identifier().toString() + " eof");
-			// do nothing, occurs when master closes connection
-		}
+		sendInt(Rubiks.DUMMY_VALUE);
+		finished.acquire();
 	}
 	
-	void sendValue(int value) throws IOException {
+	
+	@Override
+	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+		boolean shouldClose = rm.readBoolean();
+		if (shouldClose) {
+			rm.finish();
+			closePorts();
+		} else {
+			// Send a message, receive a cube, solve it and reply number of solutions
+			Cube cube = (Cube) rm.readObject();
+			rm.finish();
+			if (cache == null) {
+				cache = new CubeCache(cube.getSize());
+			}
+			sendInt(solutions(cube, cache));
+		}
+	}
+
+	void sendInt(int value) throws IOException {
 		WriteMessage wm = sender.newMessage();
 		wm.writeInt(value);
 		wm.finish();
-	}
-	
-	Cube receiveCube() throws IOException, ClassNotFoundException {
-		ReadMessage rm = receiver.receive();
-		Cube result = (Cube) rm.readObject();
-		rm.finish();
-		return result;
 	}
 
 	/**
 	 * Recursive function to find a solution for a given cube. Only searches to
 	 * the bound set in the cube object.
-	 * 
-	 * @param cube
-	 *			cube to solve
-	 * @param cache
-	 *			cache of cubes used for new cube objects
+	 *
+	 * @param cube cube to solve
+	 * @param cache cache of cubes used for new cube objects
 	 * @return the number of solutions found
 	 */
 	public int solutions(Cube cube, CubeCache cache) {
@@ -108,42 +104,5 @@ public class Worker implements RegistryEventHandler {
 		}
 
 		return result;
-	}
-
-	@Override
-	public void joined(IbisIdentifier ii) {
-	}
-
-	@Override
-	public void left(IbisIdentifier ii) {
-	}
-
-	@Override
-	public void died(IbisIdentifier ii) {
-	}
-
-	@Override
-	public void gotSignal(String string, IbisIdentifier ii) {
-	}
-
-	@Override
-	public void electionResult(String string, IbisIdentifier ii) {
-	}
-
-	@Override
-	public void poolClosed() {
-		System.out.println(parent.ibis.identifier().toString() + " pool closed");
-	}
-
-	@Override
-	public void poolTerminated(IbisIdentifier ii) {
-		System.out.println(parent.ibis.identifier().toString() + " pool terminated");
-		try {
-			running = false;
-			closePorts();
-		} catch (IOException e) {
-			// Nothing we can do, pool is terminated anyway
-		}
-
 	}
 }
