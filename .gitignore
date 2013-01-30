@@ -7,6 +7,11 @@ mpi/asp/asp-par
 mpi/asp/asp-seq
 mpi/asp/results_par
 mpi/asp/results_seq
+mpi/asp/results_mpi
+mpi/asp/KIC_SEQ_OUTPUT
+mpi/asp/kic.test.out
+mpi/asp/kic.test.err
+mpi/asp/kic.test.diff
 
 ppp1213_java/*.out
 ppp1213_java/*.err
