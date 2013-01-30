@@ -157,7 +157,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		IbisIdentifier sender = rm.origin().ibisIdentifier();
 		int requestValue = rm.readInt();
 		rm.finish();
-		if (requestValue != Rubiks.DUMMY_VALUE) {
+		if (requestValue != Rubiks.INIT_VALUE) {
 			synchronized (this) {
 				solutions.addAndGet(requestValue);
 				busyWorkers.decrementAndGet();
