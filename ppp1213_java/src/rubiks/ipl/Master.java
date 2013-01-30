@@ -56,7 +56,12 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * ports.
 	 * @throws IOException 
 	 */
-	public void closePorts() throws IOException {
+	public void shutdown() throws IOException {
+		// Terminate the pool
+		status = Status.DONE;
+		parent.ibis.registry().terminate();
+		
+		// Close ports (and send termination messages)
 		for (SendPort sender : senders.values()) {
 			WriteMessage wm = sender.newMessage();
 			wm.writeBoolean(true);
@@ -169,35 +174,43 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 
 	/**
 	 * Processes the first cube from the deque. This version is not recursive
-	 * and slightly slower that the recursive one, but e
+	 * and slightly slower that the recursive one, but is easier to handle in
+	 * the presence of other threads working on the deque.
+	 * 
+	 * The 
 	 */
 	private void processFirst(CubeCache cache) {
 		synchronized (deque) {
+			// Get a cube from the deque, null if deque is empty
 			Cube cube = deque.pollFirst();
 			if (cube == null) {
 				status = Status.DEQUE_EMPTY;
 				return;
 			}
 
+			// If the cube is solved, increment the number of found solutions
 			if (cube.isSolved()) {
 				solutions.incrementAndGet();
 				cache.put(cube);
 				return;
 			}
 
+			// Stop searching at the bound
 			if (cube.getTwists() >= cube.getBound()) {
 				cache.put(cube);
 				return;
 			}
 		
-			if (cube.getTwists() > 0 && status == Status.FILLING_DEQUE) {
+			// Make sure we have generated at least 12 * 12 = 144 children
+			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
 				status = Status.PROCESSING_DEQUE;
 				deque.notifyAll();
 			}
-			// generate all possible cubes from this one by twisting it in
+			// Generate all possible cubes from this one by twisting it in
 			// every possible way. Gets new objects from the cache
 			Cube[] children = cube.generateChildren(cache);
 
+			// Add all children to the beginning of the deque
 			for (Cube child : children) {
 				deque.addFirst(child);
 			}
@@ -232,9 +245,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			}
 			waitForWorkers();
 		}
-		status = Status.DONE;
-		parent.ibis.registry().terminate();
-		closePorts();
+		shutdown();
 
 		System.out.println();
 		System.out.println("Solving cube possible in " + solutions + " ways of "

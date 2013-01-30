@@ -32,29 +32,36 @@ public class Worker implements MessageUpcall {
 		sender.connect(master, "master");
 	}
 
-	public void closePorts() throws IOException {
+	public void shutdown() throws IOException {
+		// Close the ports
 		sender.close();
 		receiver.close();
+		
+		// Release the main thread
 		finished.release();
 	}
 
 	void run(IbisIdentifier master) throws IOException, ClassNotFoundException, InterruptedException {
+		// Open send and receive ports
 		openPorts(master);
 
 		// Send an initialization message
 		sendInt(Rubiks.DUMMY_VALUE);
+		
+		// Make sure this thread doesn't finish prematurely
 		finished.acquire();
 	}
 	
 	
 	@Override
 	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+		// Check whether we should terminate or not
 		boolean shouldClose = rm.readBoolean();
 		if (shouldClose) {
 			rm.finish();
-			closePorts();
+			shutdown();
 		} else {
-			// Send a message, receive a cube, solve it and reply number of solutions
+			// Process the cube and send back the number of solutions
 			Cube cube = (Cube) rm.readObject();
 			rm.finish();
 			if (cache == null) {
