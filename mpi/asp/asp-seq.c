@@ -197,6 +197,37 @@ void do_asp(int **tab, int n)
 	}
 }
 
+long int get_sum(int **tab, int n)
+{
+	int i, j = 0;
+	long int sum = 0;
+
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			if (tab[i][j] != MAX_DISTANCE) {
+				sum += tab[i][j];
+			}
+		}
+	}
+	
+	return sum;
+}
+
+int get_max(int **tab, int n)
+{
+	int i, j, max = 0;
+
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			if (tab[i][j] > max) {
+				max = tab[i][j];
+			}
+		}
+	}
+	
+	return max;
+}
+
 /******************** Main program *************************/
 
 void usage() {
@@ -209,7 +240,8 @@ void usage() {
 
 int main(int argc, char **argv)
 {
-	int n,m, bad_edges=0, oriented=0, lb, ub, i;
+	int n,m, bad_edges=0, oriented=0, lb, ub, i, max;
+	long int sum;
 	int **tab;
 	int print = 0;
 	struct timeval start;
@@ -256,7 +288,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	sum = get_sum(tab, n);
+
 	do_asp(tab, n);
+	
+	max = get_max(tab, n);
 
 	if(gettimeofday(&end, 0) != 0) {
 		fprintf(stderr, "could not do timing\n");
@@ -267,6 +303,8 @@ int main(int argc, char **argv)
 		(start.tv_sec + (start.tv_usec / 1000000.0));
 
 	fprintf(stderr, "ASP took %10.3f seconds\n", time);
+	printf("Total distance: %ld\n", sum);
+	printf("Diameter: %d\n", max);
 
 	if(print == 1) {
 		print_tab(tab, n);

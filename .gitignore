@@ -5,6 +5,8 @@ gpu/*.bmp
 
 mpi/asp/asp-par
 mpi/asp/asp-seq
+mpi/asp/results_par
+mpi/asp/results_seq
 
 ppp1213_java/*.out
 ppp1213_java/*.err

@@ -19,7 +19,6 @@
 #define MAX_DISTANCE 256
 // #define VERBOSE
 
-
 void alloc_tab(int rows, int cols, int **tab_buf_ptr, int ***tab_ptr) {
 	int *tab_buf;
 	int **tab;
@@ -207,6 +206,70 @@ int owner_of_row(int k, int n, int size) {
 	return (size * (k + 1) - 1) / n;
 }
 
+void do_asp(int **tab, int n, int lb, int ub, int rank, int size, MPI_Datatype row_type) {
+	int i, j, k, tmp, owner, ret;
+	int *pivot_row;
+	
+	// allocate memory for a temporary row
+	pivot_row = (int*)malloc(n * sizeof(int));
+
+	// for each row as a pivot
+	for (k = 0; k < n; k++) {
+		owner = owner_of_row(k, n, size);
+		if (rank == owner) {
+			memcpy(pivot_row, tab[k - lb], n * sizeof(int));
+		}
+		ret = MPI_Bcast(pivot_row, 1, row_type, owner, MPI_COMM_WORLD);
+		if (ret != MPI_SUCCESS) {
+			printf ("Error scattering data. Terminating.\n");
+			MPI_Abort(MPI_COMM_WORLD, ret);
+		}
+		// proccess every row we own
+		for (i = lb; i < ub; i++) {
+			if (i != k) {
+				for (j = 0; j < n; j++) {
+					tmp = tab[i - lb][k] + pivot_row[j];
+					if (tmp < tab[i - lb][j]) {
+						tab[i - lb][j] = tmp;
+					}
+				}
+			}
+		}
+	}
+	
+	free(pivot_row);
+}
+
+long int get_sum(int **tab, int n, int m) {
+	int i, j;
+	long int sum = 0;
+
+	// Get total distance of roads
+	for (i = 0; i < m; i++) {
+		for (j = 0; j < n; j++) {
+			if (tab[i][j] != MAX_DISTANCE) {
+				sum += tab[i][j];
+			}
+		}
+	}
+	
+	return sum;
+}
+
+int get_max(int **tab, int n, int m) {
+	int i, j, max = 0;
+
+	for (i = 0; i < m; i++) {
+		for (j = 0; j < n; j++) {
+			if (tab[i][j] > max) {
+				max = tab[i][j];
+			}
+		}
+	}
+	
+	return max;
+}
+
 /******************** Main program *************************/
 
 void usage() {
@@ -221,11 +284,13 @@ int main(int argc, char *argv[]) {
 	int rank, size, ret;
 	double starttime = 0.0, endtime = 0.0;
 
-	int i, j, k, n, m, lb, ub, tmp;
+	int i, n, m, lb, ub;
+	int max, my_max = 0;
+	long int sum, my_sum;
 	int bad_edges = 0, oriented = 0;
 	int **tab, **my_tab;
-	int *tab_buf, *my_tab_buf, *pivot_row;
-	int print = 0, owner;
+	int *tab_buf, *my_tab_buf;
+	int print = 0;
 	char FILENAME[100];
 
 	MPI_Datatype row_type;
@@ -325,43 +390,37 @@ int main(int argc, char *argv[]) {
 		starttime = MPI_Wtime();
 	}
 
-	// allocate memory for a temporary row
-	pivot_row = (int*)malloc(n * sizeof(int));
+	// Get the total distance of all roads
+	my_sum = get_sum(my_tab, n, ub - lb);
+	ret = MPI_Reduce(&my_sum, &sum, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (ret != MPI_SUCCESS) {
+		printf ("Error reducing value. Terminating.\n");
+		MPI_Abort(MPI_COMM_WORLD, ret);
+	}
 
-	// for each row as a pivot
-	for (k = 0; k < n; k++) {
-		owner = owner_of_row(k, n, size);
-		if (rank == owner) {
-			memcpy(pivot_row, my_tab[k - lb], n * sizeof(int));
-		}
-		ret = MPI_Bcast(pivot_row, 1, row_type, owner, MPI_COMM_WORLD);
-		if (ret != MPI_SUCCESS) {
-			printf ("Error scattering data. Terminating.\n");
-			MPI_Abort(MPI_COMM_WORLD, ret);
-		}
-		// proccess every row we own
-		for (i = lb; i < ub; i++) {
-			if (i != k) {
-				for (j = 0; j < n; j++) {
-					tmp = my_tab[i - lb][k] + pivot_row[j];
-					if (tmp < my_tab[i - lb][j]) {
-						my_tab[i - lb][j] = tmp;
-					}
-				}
-			}
-		}
+	// Calculate shortest paths between all nodes in the graph
+	do_asp(my_tab, n, lb, ub, rank, size, row_type);
+	
+	// Get maximum distance between any two places
+	my_max = get_max(my_tab, n, ub - lb);
+	ret = MPI_Reduce(&my_max, &max, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    if (ret != MPI_SUCCESS) {
+		printf ("Error reducing value. Terminating.\n");
+		MPI_Abort(MPI_COMM_WORLD, ret);
 	}
 
 	// make sure all processes are finished
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	// root records the end time and reports the run time
+	// root records the end time and reports the run time and other statistics
 	if (rank == 0) {
 		endtime = MPI_Wtime();
 		fprintf(stderr, "ASP took %10.3f seconds\n", endtime - starttime);
+		printf("Total distance: %ld\n", sum);
+		printf("Diameter: %d\n", max);
 	}
 
-	// gather rows (excluding border rows) from non-root rows
+	// gather rows from non-root rows
 	ret = MPI_Gatherv(my_tab_buf, counts[rank], row_type, tab_buf, counts, displs, row_type, 0, MPI_COMM_WORLD);
 	if (ret != MPI_SUCCESS) {
 		printf ("Error gathering data. Terminating.\n");
@@ -369,10 +428,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	// print the table
-	if (rank == 0) {
-		if(print == 1) {
-			print_tab(tab, n);
-		}
+	if (rank == 0 && print == 1) {
+		print_tab(tab, n);
 	}
 
 	// free buffers
@@ -385,7 +442,6 @@ int main(int argc, char *argv[]) {
 	}
 	free(displs);
 	free(counts);
-	free(pivot_row);
 
 	// shut down MPI
 	ret = MPI_Finalize();
