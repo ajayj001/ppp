@@ -45,7 +45,7 @@ public class Worker implements MessageUpcall {
 		openPorts(master);
 
 		// Send an initialization message
-		sendInt(Rubiks.DUMMY_VALUE);
+		sendInt(Rubiks.INIT_VALUE);
 
 		// Make sure this thread doesn't finish prematurely
 		synchronized (this) {

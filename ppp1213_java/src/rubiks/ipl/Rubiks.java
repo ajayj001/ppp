@@ -12,7 +12,7 @@ import ibis.ipl.PortType;
  */
 public class Rubiks {
 
-	public final static int DUMMY_VALUE = -1;
+	public final static int INIT_VALUE = -1;
 	
 	public final static PortType portType = new PortType(
 			PortType.COMMUNICATION_RELIABLE, PortType.SERIALIZATION_OBJECT_IBIS,

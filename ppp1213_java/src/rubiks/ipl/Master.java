@@ -81,6 +81,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			sender.connect(worker, "worker");
 			senders.put(worker, sender);
 		} catch (IOException e) {
+			e.printStackTrace(System.err);
 		}
 		return true;
 	}
@@ -97,6 +98,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			sender.close();
 			senders.remove(worker);
 		} catch (IOException e) {
+			e.printStackTrace(System.err);
 		}
 	}
 
@@ -130,6 +132,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				}
 			}
 		} catch (InterruptedException e) {
+			e.printStackTrace(System.err);
 		}
 		return cube;
 	}
@@ -154,7 +157,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		IbisIdentifier sender = rm.origin().ibisIdentifier();
 		int requestValue = rm.readInt();
 		rm.finish();
-		if (requestValue != Rubiks.DUMMY_VALUE) {
+		if (requestValue != Rubiks.INIT_VALUE) {
 			synchronized (this) {
 				solutions.addAndGet(requestValue);
 				busyWorkers.decrementAndGet();
@@ -199,11 +202,6 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				return;
 			}
 
-			// Make sure we have generated at least 12 * 12 = 144 children
-			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
-				status = Status.PROCESSING_DEQUE;
-				deque.notifyAll();
-			}
 			// Generate all possible cubes from this one by twisting it in
 			// every possible way. Gets new objects from the cache
 			Cube[] children = cube.generateChildren(cache);
@@ -211,6 +209,13 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			// Add all children to the beginning of the deque
 			for (Cube child : children) {
 				deque.addFirst(child);
+			}
+			
+			// Make sure we have generated at least 12 * 12 = 144 children
+			// before we let the workers steal jobs
+			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
+				status = Status.PROCESSING_DEQUE;
+				deque.notifyAll();
 			}
 		}
 	}
