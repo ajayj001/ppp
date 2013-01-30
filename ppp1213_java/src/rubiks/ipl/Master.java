@@ -20,29 +20,27 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	private enum Status {
 		INITIALIZING, FILLING_DEQUE, PROCESSING_DEQUE, DEQUE_EMPTY, WAITING_FOR_WORKERS, DONE
 	}
-	
+
 	private final Rubiks parent;
 	private final HashMap<IbisIdentifier, SendPort> senders;
 	private ReceivePort receiver;
 	private final Deque<Cube> deque;
-	private final Object lock;
 	private Status status;
 	private final AtomicInteger busyWorkers;
 	private final AtomicInteger solutions;
 
 	Master(Rubiks parent) throws IOException {
 		this.parent = parent;
-		this.senders = new HashMap<IbisIdentifier, SendPort>();
-		this.deque = new ArrayDeque<Cube>();
-		this.busyWorkers = new AtomicInteger(0);
-		this.status = Status.INITIALIZING;
-		this.lock = new Object();
-		this.solutions = new AtomicInteger(0);
+		senders = new HashMap<IbisIdentifier, SendPort>();
+		deque = new ArrayDeque<Cube>();
+		busyWorkers = new AtomicInteger(0);
+		status = Status.INITIALIZING;
+		solutions = new AtomicInteger(0);
 	}
 
 	/**
 	 * Creates a receive port to receive cube requests from workers.
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	private void openPorts() throws IOException {
 		receiver = parent.ibis.createReceivePort(Rubiks.portType, "master",
@@ -50,17 +48,17 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		receiver.enableConnections();
 		receiver.enableMessageUpcalls();
 	}
-	
+
 	/**
 	 * Sends a termination message to all connected workers and closes all
 	 * ports.
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	public void shutdown() throws IOException {
 		// Terminate the pool
 		status = Status.DONE;
 		parent.ibis.registry().terminate();
-		
+
 		// Close ports (and send termination messages)
 		for (SendPort sender : senders.values()) {
 			WriteMessage wm = sender.newMessage();
@@ -70,7 +68,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		}
 		receiver.close();
 	}
-	
+
 	/**
 	 * If a connection to the receive port is established, create a sendport in
 	 * the reverse direction.
@@ -107,10 +105,10 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * solutions.
 	 */
 	private void waitForWorkers() throws InterruptedException {
-		synchronized (lock) {
+		synchronized (this) {
 			status = Status.WAITING_FOR_WORKERS;
 			while (busyWorkers.get() != 0) {
-				lock.wait();
+				this.wait();
 			}
 		}
 	}
@@ -135,7 +133,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		}
 		return cube;
 	}
-	
+
 	/**
 	 * Send a cube to a worker.
 	 */
@@ -157,17 +155,17 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		int requestValue = rm.readInt();
 		rm.finish();
 		if (requestValue != Rubiks.DUMMY_VALUE) {
-			synchronized (lock) {
+			synchronized (this) {
 				solutions.addAndGet(requestValue);
 				busyWorkers.decrementAndGet();
-				lock.notifyAll();
+				this.notify();
 			}
 		}
 
 		// Get the port to the sender and send the cube
 		Cube replyValue = getLast(); // may block for some time
 		sendCube(replyValue, sender);
-		
+
 		// Increase the number of workers we are waiting for
 		busyWorkers.incrementAndGet();
 	}
@@ -176,8 +174,8 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * Processes the first cube from the deque. This version is not recursive
 	 * and slightly slower that the recursive one, but is easier to handle in
 	 * the presence of other threads working on the deque.
-	 * 
-	 * The 
+	 *
+	 * The
 	 */
 	private void processFirst(CubeCache cache) {
 		synchronized (deque) {
@@ -200,7 +198,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				cache.put(cube);
 				return;
 			}
-		
+
 			// Make sure we have generated at least 12 * 12 = 144 children
 			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
 				status = Status.PROCESSING_DEQUE;
@@ -221,7 +219,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * Solves a Rubik's cube by iteratively searching for solutions with a
 	 * greater depth. This guarantees the optimal solution is found. Repeats all
 	 * work for the previous iteration each iteration though...
-	 * 
+	 *
 	 * @param cube
 	 *			the cube to solve
 	 */
@@ -272,7 +270,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 
 	/**
 	 * Main function.
-	 * 
+	 *
 	 * @param arguments
 	 *			list of arguments
 	 */
@@ -330,7 +328,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				+ cube.getSize() + ", twists = " + twists + ", seed = " + seed);
 		cube.print(System.out);
 		System.out.flush();
-		
+
 		// open Ibis ports
 		openPorts();
 

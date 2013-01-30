@@ -1,6 +1,5 @@
 package rubiks.ipl;
 
-import rubiks.ipl.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -10,9 +9,9 @@ import java.util.Random;
 
 /**
  * @author Niels Drost
- * 
+ *
  *		 A rubik's cube.
- * 
+ *
  */
 public class Cube implements Serializable {
 
@@ -60,9 +59,9 @@ public class Cube implements Serializable {
 	/*
 	 * content of the cube. Data format is an array of sides, with all the
 	 * elements of each side as an array of bytes.
-	 * 
+	 *
 	 * expanded view of cube (with starting colors, top = white):
-	 * 
+	 *
 	 * W BOGR Y
 	 */
 	private final byte[][] data;
@@ -73,7 +72,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Creates a "solved" cube of a given size
-	 * 
+	 *
 	 * @param size
 	 *			size of the cube (standard rubik's cube is 3x3x3).
 	 */
@@ -96,7 +95,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Creates a random cube by randomly twisting it.
-	 * 
+	 *
 	 * @param size
 	 *			size of the cube (standard rubik's cube is 3x3x3).
 	 * @param twists
@@ -140,7 +139,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Copy constructor.
-	 * 
+	 *
 	 * @param original
 	 *			original cube to copy
 	 */
@@ -210,7 +209,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Copy contents of this cube into a given target.
-	 * 
+	 *
 	 * @param target
 	 *			target for data of this cube.
 	 */
@@ -227,7 +226,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Returns the size of this cube. Default rubik's cube is of size 3
-	 * 
+	 *
 	 * @return the size of this cube.
 	 */
 	public int getSize() {
@@ -236,7 +235,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Number of times this cube has been twisted
-	 * 
+	 *
 	 * @return the number of twists
 	 */
 	public int getTwists() {
@@ -246,7 +245,7 @@ public class Cube implements Serializable {
 	/**
 	 * Get the bound of this cube. Not actually used in this class, but useful
 	 * in search algorithm.
-	 * 
+	 *
 	 * @return the current bound
 	 */
 	public int getBound() {
@@ -256,7 +255,7 @@ public class Cube implements Serializable {
 	/**
 	 * Set the bound of this cube. Not actually used in this class, but useful
 	 * in in search algorithm.
-	 * 
+	 *
 	 * @param bound
 	 *			the new bound
 	 */
@@ -266,7 +265,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Returns if this cube is solved or not.
-	 * 
+	 *
 	 * @return true if solved, false if not
 	 */
 	public boolean isSolved() {
@@ -284,10 +283,10 @@ public class Cube implements Serializable {
 
 	/**
 	 * Twists this cube in each way possible.
-	 * 
+	 *
 	 * @param cache
 	 *			cache used to get new cube objects from.
-	 * 
+	 *
 	 * @return all the possible children of this cube.
 	 */
 	public Cube[] generateChildren(CubeCache cache) {
@@ -307,7 +306,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Twist the cube, returning the result as a new cube.
-	 * 
+	 *
 	 * @param axis
 	 *			axis to turn cube on
 	 * @param row
@@ -316,7 +315,7 @@ public class Cube implements Serializable {
 	 *			direction to turn, either positive or negative
 	 * @param cache
 	 *			cache used to get new cube objects from.
-	 * 
+	 *
 	 * @return the resulting cube after twisting
 	 */
 	public Cube twist(Axis axis, int row, boolean direction, CubeCache cache) {
@@ -352,7 +351,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Print cube.
-	 * 
+	 *
 	 * @param out
 	 *			stream to use as output
 	 */
@@ -392,7 +391,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Computes the "inverse" of a row or column (last = first, etc)
-	 * 
+	 *
 	 * @param value
 	 *			original value
 	 * @return inverse of value (last = first, etc)
@@ -404,7 +403,7 @@ public class Cube implements Serializable {
 	/**
 	 * Computes the position into the data array for each side from the row and
 	 * column
-	 * 
+	 *
 	 * @param row
 	 *			row of element
 	 * @param column
@@ -417,7 +416,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * rotate side of a cube (side effect of twisting)
-	 * 
+	 *
 	 * @param side
 	 *			side to turn
 	 * @param direction
@@ -455,7 +454,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Twist cube on the X-axis.
-	 * 
+	 *
 	 * @param firstRow
 	 *			first row which to turn ( 0 < row < size )
 	 * @param direction
@@ -493,7 +492,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Twist cube on the Y-axis.
-	 * 
+	 *
 	 * @param firstColumn
 	 *			first column which to turn ( 0 < column < size )
 	 * @param direction
@@ -537,7 +536,7 @@ public class Cube implements Serializable {
 
 	/**
 	 * Twist cube on the Z-axis.
-	 * 
+	 *
 	 * @param firstRow
 	 *			first row which to turn ( 0 < row < size )
 	 * @param direction
@@ -590,7 +589,7 @@ public class Cube implements Serializable {
 	/**
 	 * Checks if consistent. Not a very good check, as only the absence of
 	 * pieces is checked. If the cube is in a reachable state is not checked.
-	 * 
+	 *
 	 */
 	private void checkIfConsistent() {
 		int[] counts = new int[SIDES];

@@ -7,7 +7,6 @@ import ibis.ipl.ReceivePort;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
 import java.io.IOException;
-import java.util.concurrent.Semaphore;
 
 public class Worker implements MessageUpcall {
 
@@ -15,12 +14,10 @@ public class Worker implements MessageUpcall {
 	private CubeCache cache;
 	private ReceivePort receiver;
 	private SendPort sender;
-	private final Semaphore finished;
 
 	Worker(Rubiks parent) {
 		this.parent = parent;
-		this.cache = null;
-		this.finished = new Semaphore(0);
+		cache = null;
 	}
 
 	void openPorts(IbisIdentifier master) throws IOException {
@@ -36,9 +33,11 @@ public class Worker implements MessageUpcall {
 		// Close the ports
 		sender.close();
 		receiver.close();
-		
-		// Release the main thread
-		finished.release();
+
+		// Notify the main thread
+		synchronized (this) {
+			this.notify();
+		}
 	}
 
 	void run(IbisIdentifier master) throws IOException, ClassNotFoundException, InterruptedException {
@@ -47,12 +46,13 @@ public class Worker implements MessageUpcall {
 
 		// Send an initialization message
 		sendInt(Rubiks.DUMMY_VALUE);
-		
+
 		// Make sure this thread doesn't finish prematurely
-		finished.acquire();
+		synchronized (this) {
+			this.wait();
+		}
 	}
-	
-	
+
 	@Override
 	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
 		// Check whether we should terminate or not
