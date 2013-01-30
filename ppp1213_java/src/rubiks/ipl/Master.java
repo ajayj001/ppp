@@ -166,7 +166,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		}
 		
 		synchronized (deque) {
-			if (cube.getTwists() > 0 && status == Status.FILLING_DEQUE) {
+			if (cube.getTwists() > 1 && status == Status.FILLING_DEQUE) {
 				status = Status.PROCESSING_DEQUE;
 				System.out.println("status: processing deque");
 				deque.notifyAll();
