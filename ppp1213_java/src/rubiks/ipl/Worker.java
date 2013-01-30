@@ -1,69 +1,88 @@
 package rubiks.ipl;
 
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
 import ibis.ipl.ReceivePort;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
 import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
-public class Worker {
+public class Worker implements MessageUpcall {
 
 	private final Rubiks parent;
 	private CubeCache cache;
+	private ReceivePort receiver;
+	private SendPort sender;
+	private final Semaphore finished;
 
 	Worker(Rubiks parent) {
 		this.parent = parent;
+		this.cache = null;
+		this.finished = new Semaphore(0);
 	}
 
-	void run(IbisIdentifier master) throws IOException, ClassNotFoundException {
-		// Create a reveive port and enable it
-		ReceivePort receiver = parent.ibis.createReceivePort(Rubiks.explicitPortType, "worker");
+	void openPorts(IbisIdentifier master) throws IOException {
+		receiver = parent.ibis.createReceivePort(Rubiks.portType, "worker", this);
 		receiver.enableConnections();
+		receiver.enableMessageUpcalls();
 
-		// Create a send port for sending requests and connect
-		SendPort sender = parent.ibis.createSendPort(Rubiks.upcallPortType);
+		sender = parent.ibis.createSendPort(Rubiks.portType);
 		sender.connect(master, "master");
+	}
 
-		// Send a message, receive a cube, solve it and reply number of solutions
-		Cube cube = null;
-		boolean first = true;
-		do {
-			//try {
-				int solutions;
-				if (first) {
-					solutions = Rubiks.DUMMY_VALUE;
-				} else {
-					solutions = solutions(cube, cache);
-				}
-				WriteMessage wm = sender.newMessage();
-				wm.writeInt(solutions);
-				wm.finish();
-				ReadMessage rm = receiver.receive();
-				cube = (Cube) rm.readObject();
-				rm.finish();
-				if (first && cube != null) {
-					cache = new CubeCache(cube.getSize());
-					first = false;
-				}
-			//} catch (IOException e) {
-			//	break;
-			//}
-		} while (cube != null);
-		
-		// Close ports.
+	public void shutdown() throws IOException {
+		// Close the ports
 		sender.close();
 		receiver.close();
+		
+		// Release the main thread
+		finished.release();
+	}
+
+	void run(IbisIdentifier master) throws IOException, ClassNotFoundException, InterruptedException {
+		// Open send and receive ports
+		openPorts(master);
+
+		// Send an initialization message
+		sendInt(Rubiks.DUMMY_VALUE);
+		
+		// Make sure this thread doesn't finish prematurely
+		finished.acquire();
+	}
+	
+	
+	@Override
+	public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+		// Check whether we should terminate or not
+		boolean shouldClose = rm.readBoolean();
+		if (shouldClose) {
+			rm.finish();
+			shutdown();
+		} else {
+			// Process the cube and send back the number of solutions
+			Cube cube = (Cube) rm.readObject();
+			rm.finish();
+			if (cache == null) {
+				cache = new CubeCache(cube.getSize());
+			}
+			sendInt(solutions(cube, cache));
+		}
+	}
+
+	void sendInt(int value) throws IOException {
+		WriteMessage wm = sender.newMessage();
+		wm.writeInt(value);
+		wm.finish();
 	}
 
 	/**
 	 * Recursive function to find a solution for a given cube. Only searches to
 	 * the bound set in the cube object.
-	 * 
-	 * @param cube
-	 *			cube to solve
-	 * @param cache
-	 *			cache of cubes used for new cube objects
+	 *
+	 * @param cube cube to solve
+	 * @param cache cache of cubes used for new cube objects
 	 * @return the number of solutions found
 	 */
 	public int solutions(Cube cube, CubeCache cache) {
