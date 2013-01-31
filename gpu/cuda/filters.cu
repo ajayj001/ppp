@@ -35,7 +35,7 @@ rgb2gray_kernel(uchar *inputImage, uchar *grayImage, const int width, const int 
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
 	// Make sure we are within bounds
-	if (x >= width || y >= height) return;
+	if (x * 4 >= width || y >= height) return;
 
 	// Fetch 3 times 4 pixels from device buffer
 	const int quarterPitch = pitch / 4;
@@ -131,22 +131,26 @@ histogram1D_kernel(uchar *grayImage, const int width, const int height, uint *hi
 	const uchar4 in = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
 	// Initialize shared histogram
-	__shared__ uchar histogram_shared[HISTOGRAM_SIZE];
+	__shared__ uint histogram_shared[HISTOGRAM_SIZE];
 	const int histogramIndex = blockDim.y * threadIdx.y + threadIdx.x;
 	histogram_shared[histogramIndex] = 0;
 	__syncthreads();
 
 	// Make sure we are within bounds
-	if (x >= width || y >= height) return;
+	if (x * 4 >= width || y >= height) return;
 
 	// Add pixel data to shared histogram
-	histogram_shared[in.x]++;
-	if (x + 1 < width)
-		histogram_shared[in.y]++;
-	if (x + 2 < width)
-		histogram_shared[in.z]++;
-	if (x + 3 < width)
-		histogram_shared[in.w]++;
+	atomicAdd(&histogram_shared[in.x], 1);
+	if (x * 4 + 3 < width) {
+		atomicAdd(&histogram_shared[in.y], 1);
+		atomicAdd(&histogram_shared[in.z], 1);
+		atomicAdd(&histogram_shared[in.w], 1);
+	} else if (x * 4 + 2 < width) {
+		atomicAdd(&histogram_shared[in.y], 1);
+		atomicAdd(&histogram_shared[in.z], 1);
+	} else if (x * 4 + 1 < width) {
+		atomicAdd(&histogram_shared[in.y], 1);
+	}
 
 	// Atomically add shared histogram to global histogram
 	__syncthreads();
@@ -243,7 +247,7 @@ NSTimer &timer) {
  * Helper function for the contrast1D kernel to determine the new value of pixel.
  */
 __device__ void
-contrast1D_pixelValue (uchar &pixel, const uint min, const uint diff) {
+contrast1D_pixelValue (uchar &pixel, const int min, const int max, const float diff) {
 	float temp = 255.0f * (pixel - min) / diff;
 	// Two statements below used to be branches
 	temp = fminf(temp, 255.0f);
@@ -261,7 +265,7 @@ contrast1D_pixelValue (uchar &pixel, const uint min, const uint diff) {
  * multiples of at least 4.
  */
 __global__ void
-contrast1D_kernel(uchar *grayImage, const int width, const int height, const uint min, const uint diff,
+contrast1D_kernel(uchar *grayImage, const int width, const int height, const int min, const int max, const float diff,
 const size_t pitch) {
 	const int x = blockDim.x * blockIdx.x + threadIdx.x;
 	const int y = blockDim.y * blockIdx.y + threadIdx.y;
@@ -270,13 +274,13 @@ const size_t pitch) {
 	uchar4 pixels = ((uchar4*)grayImage)[(y * pitch / 4) + x];
 
 	// Make sure we are within bounds
-	if (x >= width || y >= height) return;
+	if (x * 4 >= width || y >= height) return;
 
 	// Calculate new pixel values for all 4 pixels
-	contrast1D_pixelValue(pixels.x, min, diff);
-	contrast1D_pixelValue(pixels.y, min, diff);
-	contrast1D_pixelValue(pixels.z, min, diff);
-	contrast1D_pixelValue(pixels.w, min, diff);
+	contrast1D_pixelValue(pixels.x, min, max, diff);
+	contrast1D_pixelValue(pixels.y, min, max, diff);
+	contrast1D_pixelValue(pixels.z, min, max, diff);
+	contrast1D_pixelValue(pixels.w, min, max, diff);
 
 	// Store 4 pixels back to the device buffer
 	((uchar4*)grayImage)[(y * pitch / 4) + x] = pixels;
@@ -308,14 +312,14 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	while ((i < HISTOGRAM_SIZE) && (histogram[i] < CONTRAST_THRESHOLD)) {
 		i++;
 	}
-	uint min = i;
+	int min = i;
 
 	i = HISTOGRAM_SIZE - 1;
 	while ((i > min) && (histogram[i] < CONTRAST_THRESHOLD)) {
 		i--;
 	}
-	uint max = i;
-	uint diff = max - min;
+	int max = i;
+	float diff = max - min;
 
 	// Copy the grayscale image from the host to the device
 	copyToDeviceTime.start();
@@ -328,7 +332,7 @@ void contrast1D(uchar *grayImage, const int width, const int height, uint *histo
 	kernelTime.start();
 	dim3 threadsPerBlock(16, 16);
 	dim3 blocksPerGrid(ceil((float)width / 4 / threadsPerBlock.x), ceil((float)height / threadsPerBlock.y));
-	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, diff, pitch);
+	contrast1D_kernel<<<blocksPerGrid, threadsPerBlock>>>(grayImage_device, width, height, min, max, diff, pitch);
 	checkError(cudaGetLastError(), "Failed to launch contrast1D_kernel (error code %s)\n");
 	cudaDeviceSynchronize();
 	kernelTime.stop();
