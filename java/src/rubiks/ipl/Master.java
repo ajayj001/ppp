@@ -128,7 +128,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 * Get the last cube from the deque, which will have less twists and thus
 	 * more work on average than cubes from the start of the deque.
 	 */
-	private Cube getLast() {
+	private Cube getLastCube() {
 		Cube cube = null;
 		try {
 			synchronized (deque) {
@@ -175,7 +175,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		}
 
 		// Get the port to the sender and send the cube
-		Cube replyValue = getLast(); // may block for some time
+		Cube replyValue = getLastCube(); // may block for some time
 		sendCube(replyValue, sender);
 
 		// Increase the number of workers we are waiting for
@@ -189,7 +189,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 *
 	 * The
 	 */
-	private void process(CubeCache cache, boolean first) {
+	private void processCube(CubeCache cache, boolean first) {
 		synchronized (deque) {
 			// Get a cube from the deque, null if deque is empty
 			Cube cube;
@@ -263,7 +263,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			System.out.print(" " + bound);
 			
 			while (deque.size() < fillCubes && !deque.isEmpty()) {
-				process(cache, false);
+				processCube(cache, false);
 			}
 			synchronized (deque) {
 				if (!deque.isEmpty()) {
@@ -272,7 +272,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				}
 			}
 			while (!deque.isEmpty()) {
-				process(cache, true);
+				processCube(cache, true);
 			}
 			waitForWorkers();
 		}

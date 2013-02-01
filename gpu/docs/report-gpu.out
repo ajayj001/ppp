@@ -1,7 +1,0 @@
-\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
-\BOOKMARK [1][-]{section.2}{Image conversion pipeline}{}% 2
-\BOOKMARK [2][-]{subsection.2.1}{Grayscale conversion}{section.2}% 3
-\BOOKMARK [2][-]{subsection.2.2}{Histogram calculation}{section.2}% 4
-\BOOKMARK [2][-]{subsection.2.3}{Contrast enhancement}{section.2}% 5
-\BOOKMARK [2][-]{subsection.2.4}{Smoothing}{section.2}% 6
-\BOOKMARK [1][-]{section.3}{Overall speedup}{}% 7

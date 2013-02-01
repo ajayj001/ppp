@@ -1,3 +1,10 @@
 \BOOKMARK [1][-]{section.1}{Introduction}{}% 1
 \BOOKMARK [1][-]{section.2}{Design overview}{}% 2
 \BOOKMARK [1][-]{section.3}{Problems during implementation}{}% 3
+\BOOKMARK [2][-]{subsection.3.1}{Concurrency and synchronization}{section.3}% 4
+\BOOKMARK [2][-]{subsection.3.2}{Handling SendPorts on the master}{section.3}% 5
+\BOOKMARK [2][-]{subsection.3.3}{Termination}{section.3}% 6
+\BOOKMARK [1][-]{section.4}{Performance results}{}% 7
+\BOOKMARK [2][-]{subsection.4.1}{Size 3, 11 twists}{section.4}% 8
+\BOOKMARK [2][-]{subsection.4.2}{Size 3, 12 twists}{section.4}% 9
+\BOOKMARK [2][-]{subsection.4.3}{Size 4, 11 twists}{section.4}% 10
