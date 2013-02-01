@@ -20,7 +20,7 @@ public class Rubiks {
 			PortType.CONNECTION_UPCALLS);
 
 	public final static IbisCapabilities ibisCapabilities = new IbisCapabilities(
-			IbisCapabilities.ELECTIONS_STRICT, IbisCapabilities.TERMINATION);
+			IbisCapabilities.ELECTIONS_STRICT, IbisCapabilities.CLOSED_WORLD);
 
 	public final Ibis ibis;
 
