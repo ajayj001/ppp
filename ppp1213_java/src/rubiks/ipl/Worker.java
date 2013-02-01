@@ -1,5 +1,6 @@
 package rubiks.ipl;
 
+import ibis.ipl.ConnectionClosedException;
 import ibis.ipl.IbisIdentifier;
 import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
@@ -33,8 +34,12 @@ public class Worker implements MessageUpcall {
 
 	public void shutdown() throws IOException {
 		// Close the ports
-		sender.close();
-		receiver.close();
+		try {
+			sender.close();
+			receiver.close();
+		} catch (ConnectionClosedException e) {
+			// do nothing
+		}
 
 		// Notify the main thread
 		synchronized (this) {

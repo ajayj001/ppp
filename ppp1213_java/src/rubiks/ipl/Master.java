@@ -1,5 +1,6 @@
 package rubiks.ipl;
 
+import ibis.ipl.ConnectionClosedException;
 import ibis.ipl.IbisIdentifier;
 import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
@@ -62,13 +63,17 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		parent.ibis.registry().terminate();
 
 		// Close ports (and send termination messages)
-		for (SendPort sender : senders.values()) {
-			WriteMessage wm = sender.newMessage();
-			wm.writeBoolean(true);
-			wm.finish();
-			sender.close();
+		try {
+			for (SendPort sender : senders.values()) {
+				WriteMessage wm = sender.newMessage();
+				wm.writeBoolean(true);
+				wm.finish();
+				sender.close();
+			}
+			receiver.close();
+		} catch (ConnectionClosedException e) {
+			// do nothing
 		}
-		receiver.close();
 	}
 
 	/**
@@ -99,6 +104,8 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			SendPort sender = senders.get(worker);
 			sender.close();
 			senders.remove(worker);
+		} catch (ConnectionClosedException e) {
+			// do nothing
 		} catch (IOException e) {
 			e.printStackTrace(System.err);
 		}
