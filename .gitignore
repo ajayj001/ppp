@@ -1,4 +1,6 @@
 *.o
+*.zip
+*.tar.gz
 
 gpu/bin/*
 gpu/*.bmp
@@ -13,6 +15,6 @@ mpi/asp/kic.test.out
 mpi/asp/kic.test.err
 mpi/asp/kic.test.diff
 
-ppp1213_java/*.out
-ppp1213_java/*.err
-ppp1213_java/lib/*
+java/*.out
+java/*.err
+java/lib/*
