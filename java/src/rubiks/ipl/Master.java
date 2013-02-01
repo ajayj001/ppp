@@ -250,8 +250,7 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		
 		// determine how many cubes we should process from the end of the deque
 		// in order get it ready for cubes
-		int fillCubes = 6 * (cube.getSize() - 1);
-		fillCubes *= fillCubes;
+		int fillCubes = (int) Math.pow(6 * (cube.getSize() - 1), 2);
 		
 		System.out.print("Bound now:");
 
