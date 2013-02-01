@@ -31,6 +31,9 @@ public class Rubiks {
 	}
 
 	void run(String[] arguments) throws Exception {
+		// Wait until all ibises joined
+		ibis.registry().waitUntilPoolClosed();
+		
 		// Elect a master
 		IbisIdentifier master = ibis.registry().elect("Master");
 
