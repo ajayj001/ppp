@@ -42,14 +42,31 @@ In the presence of $n$ workers, there are multiple threads active in the master:
 \item AtomicIntegers are used to store the number of solutions and the number of workers the master is still waiting for.
 \end{itemize}
 
-\subsection{Handling sendports on the master}
-TODO
+\subsection{Handling SendPorts on the master}
+The master has to have SendPorts to all workers open to avoid having to create a new connection upon every incoming request. To do this, the master implements \emph{ReceivePortConnectUpcall}, so it creates a SendPort whenever a worker connects to it ReceivePort. These SendPorts are stored in a HashMap, so they can be retrieved later based on an IbisIdentifier.
 
 \subsection{Termination}
 Because I was having some trouble with Ibis termination mechanism, which is probably caused by not having an example available explaining how to use it, I created a very simple termination mechanism:
 
 Every cube that is sent from the master to the worker, is preceded by a boolean. Normally this boolean is false, but when the master decides it is time to terminate, it sends a true, signaling the workers to quit.
 
-Everyone then closes their sendports and then their receiveports (since closing a receiveport blocks if there is still a sendport connected to it).
+Everyone then closes their SendPorts and then their ReceivePorts (since closing a ReceivePort blocks if there is still a SendPort connected to it).
+
+\section{Performance results}
+To test the performance, I tested three types of cubes, in order of complexity:
+\begin{enumerate}
+\item A cube of size 3 with 11 twists (2 solutions in 7 steps)
+\item A cube of size 3 with 12 twists (4 solutions in 8 steps)
+\item A cube of size 4 with 11 twists (2 solutions in 7 steps)
+\end{enumerate}
+All of these cubes were created with seed 0. Since all cubes up to a certain bound are searched for solutions, the seed value does not matter very much, as long as the minimum number of steps in the solution is the same.
+
+The speedup is fairly linear, the deviation from linear speedup can probably be explained by a higher amount of contention on the deque for a larger amount of workers and the fact that the master has relatively more work to do. Better speedup could probably be achieved by implementing work stealing, since more deques to steal from means lower contention, but my hypothesis is the difference would not be huge. In case of a solver in which it is more difficult to estimate the amount of work for an item, work stealing would be more beneficial.
+
+\subsection{Size 3, 11 twists}
+
+\subsection{Size 3, 12 twists}
+
+\subsection{Size 4, 11 twists}
 
 \end{document}
