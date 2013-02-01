@@ -7,6 +7,8 @@ import ibis.ipl.ReceivePort;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
 import java.io.IOException;
+import rubiks.sequential.Cube;
+import rubiks.sequential.CubeCache;
 
 public class Worker implements MessageUpcall {
 

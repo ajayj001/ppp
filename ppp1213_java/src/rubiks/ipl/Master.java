@@ -14,6 +14,8 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import rubiks.sequential.Cube;
+import rubiks.sequential.CubeCache;
 
 public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 
@@ -211,8 +213,8 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 				deque.addFirst(child);
 			}
 			
-			// Make sure we have generated at least 12 * 12 = 144 children
-			// before we let the workers steal jobs
+			// Make sure we have generated at least (6*(size-1))^2 children
+			// (=144 for size 3) before we let the workers steal jobs
 			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
 				status = Status.PROCESSING_DEQUE;
 				deque.notifyAll();
