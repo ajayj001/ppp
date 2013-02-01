@@ -1,6 +1,6 @@
 #!/bin/bash
 
-POOLSIZE=1
+POOLSIZE=4
 POOLNAME=pool-$(date +%Y%m%d%H%M%S)-$(date +%N)
 
 for (( i=0; i < $POOLSIZE; i++ )); do

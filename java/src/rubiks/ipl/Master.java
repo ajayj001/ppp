@@ -189,10 +189,15 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 	 *
 	 * The
 	 */
-	private void processFirst(CubeCache cache) {
+	private void process(CubeCache cache, boolean first) {
 		synchronized (deque) {
 			// Get a cube from the deque, null if deque is empty
-			Cube cube = deque.pollFirst();
+			Cube cube;
+			if (first) {
+				cube = deque.pollFirst();
+			} else {
+				cube = deque.pollLast();
+			}
 			if (cube == null) {
 				status = Status.DEQUE_EMPTY;
 				return;
@@ -202,12 +207,18 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			if (cube.isSolved()) {
 				solutions.incrementAndGet();
 				cache.put(cube);
+				if (deque.isEmpty()) {
+					status = Status.DEQUE_EMPTY;
+				}
 				return;
 			}
 
 			// Stop searching at the bound
 			if (cube.getTwists() >= cube.getBound()) {
 				cache.put(cube);
+				if (deque.isEmpty()) {
+					status = Status.DEQUE_EMPTY;
+				}
 				return;
 			}
 
@@ -218,13 +229,6 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			// Add all children to the beginning of the deque
 			for (Cube child : children) {
 				deque.addFirst(child);
-			}
-			
-			// Make sure we have generated at least (6*(size-1))^2 children
-			// (=144 for size 3) before we let the workers steal jobs
-			if (cube.getTwists() >= 2 && status == Status.FILLING_DEQUE) {
-				status = Status.PROCESSING_DEQUE;
-				deque.notifyAll();
 			}
 		}
 	}
@@ -243,6 +247,12 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 		CubeCache cache = new CubeCache(cube.getSize());
 
 		int bound = 0;
+		
+		// determine how many cubes we should process from the end of the deque
+		// in order get it ready for cubes
+		int fillCubes = 6 * (cube.getSize() - 1);
+		fillCubes *= fillCubes;
+		
 		System.out.print("Bound now:");
 
 		while (solutions.get() == 0) {
@@ -252,8 +262,18 @@ public class Master implements MessageUpcall, ReceivePortConnectUpcall {
 			deque.addFirst(cube);
 
 			System.out.print(" " + bound);
+			
+			while (deque.size() < fillCubes && !deque.isEmpty()) {
+				process(cache, false);
+			}
+			synchronized (deque) {
+				if (!deque.isEmpty()) {
+					status = Status.PROCESSING_DEQUE;
+					deque.notifyAll();
+				}
+			}
 			while (!deque.isEmpty()) {
-				processFirst(cache);
+				process(cache, true);
 			}
 			waitForWorkers();
 		}
