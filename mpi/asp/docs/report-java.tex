@@ -7,7 +7,7 @@
 \usepackage{hyperref}
 \usepackage{float}
 
-\title{Java Assignment}
+\title{GPU Assignment}
 \author{Jan van der Lugt}
 \date{}
 
@@ -15,9 +15,14 @@
 \maketitle
 
 \section{Introduction}
-The report discusses my implementation of a distributed Rubik's cube solver based on the Ibis framework.
-
-Section 2 will go through the problems that were identified during the conversation from sequential to distributed code and how they were solved. Section 3 will discuss performance results.
+The report discusses my implementation of an image processing pipeline for the Parallel Programming Practical course. In this image processing pipeline, 4 steps can be identified:
+\begin{enumerate}
+\item Grayscale conversion
+\item Histogram calculation
+\item Contrast enhancement
+\item Smoothing
+\end{enumerate}
+Section 2 will go through these steps and explain into detail how the specific kernel was converted to a CUDA kernel. Section 3 will report the overall speedup compared to sequential kernels and identify room for improvement.
 
 \section{Image conversion pipeline}
 All runtimes in this section are based on an image on in the image set. The image in the image set has `nice' dimensions, which makes the impact of `pitching' the memory hard to measure. Therefor, a big image found on Google Image search was used\footnote{\url{http://www.adnahome.org/xviews/town-1969-large.jpg}}. The dimensions of this image are 8773 x 5352 with 24-bit colors (total of 46.953.096 pixels).
