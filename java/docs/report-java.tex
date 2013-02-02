@@ -59,14 +59,35 @@ To test the performance, I tested three types of cubes, in order of complexity:
 \item A cube of size 3 with 12 twists (4 solutions in 8 steps)
 \item A cube of size 4 with 11 twists (2 solutions in 7 steps)
 \end{enumerate}
-All of these cubes were created with seed 0. Since all cubes up to a certain bound are searched for solutions, the seed value does not matter very much, as long as the minimum number of steps in the solution is the same.
+All of these cubes were created with seed 0. Since all cubes up to a certain bound are searched for solutions, the seed value does not matter very much, as long as the minimum number of steps in the solution is the same. The numbers below are in seconds and averaged over 3 runs. \\
 
-The speedup is fairly linear, the deviation from linear speedup can probably be explained by a higher amount of contention on the deque for a larger amount of workers and the fact that the master has relatively more work to do. Better speedup could probably be achieved by implementing work stealing, since more deques to steal from means lower contention, but my hypothesis is the difference would not be huge. In case of a solver in which it is more difficult to estimate the amount of work for an item, work stealing would be more beneficial.
+\begin{tabular}{ | l | S | S | S | S | S | S | }
+	\hline
+	\textbf{Cube type} & \textbf{Sequential} & \textbf{IPL 1} & \textbf{IPL 2} & \textbf{IPL 4} & \textbf{IPL 8} & \textbf{IPL 16} \\
+	\hline                       
+	Size 3, 11 twists & 10.5 & 13.2 & 6.2 & 3.2 & 1.8 & 1.2 \\
+	\hline
+	Size 3, 12 twists & 122.6 & 159.8 & 69.8 & 33.4 & 16.7 & 8.9 \\
+	\hline
+	Size 4, 11 twists & 209.5 & 245.6 & 113.2 & 54.5 & 27.0 & 13.5 \\
+	\hline
+\end{tabular} \\
 
-\subsection{Size 3, 11 twists}
+As can be seen in the graphs on the next page, some of the speedups are superlinear. This can be explained by the fact that the workers use a more efficient solver, the one based on recursion. The more workers, the less work the less efficient solver of the master has to do.
 
-\subsection{Size 3, 12 twists}
+Implementing work stealing between workers would probably not help much, since all cubes with an equal number of twists and an equal bound have the same amount of work. For puzzles that do not have such a predictable amount of work, work stealing between workers would be more beneficial.
 
-\subsection{Size 4, 11 twists}
+\begin{figure}[h]
+\includegraphics[scale=0.5]{figures/3-11.pdf}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.5]{figures/3-12.pdf}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.5]{figures/4-11.pdf}
+\end{figure}
+
 
 \end{document}
