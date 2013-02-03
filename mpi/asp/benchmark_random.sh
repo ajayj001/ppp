@@ -1,6 +1,6 @@
 #!/bin/bash
 results=results_random
-for size in 3000; do
+for size in 1000 2000 3000; do
 	echo random $size >> $results
 	echo seq >> $results
 	for i in {1..3}; do

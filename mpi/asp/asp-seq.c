@@ -15,7 +15,6 @@
 
 /******************** ASP stuff *************************/
 
-
 #define MAX_DISTANCE 256
 // #define VERBOSE
 
