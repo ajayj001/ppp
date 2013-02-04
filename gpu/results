@@ -1,0 +1,492 @@
+images/image00.jpg
+rgb2gray (allocation): 			0.000234 seconds.
+rgb2gray (copyToDevice): 		0.000920 seconds.
+rgb2gray (kernel): 			0.000223 seconds.
+rgb2gray (copyFromDevice): 		0.000926 seconds.
+histogram1D (allocation): 		0.000221 seconds.
+histogram1D (copyToDevice): 		0.000249 seconds.
+histogram1D (kernel): 			0.000343 seconds.
+histogram1D (copyFromDevice): 		0.000029 seconds.
+contrast1D (allocation): 		0.000124 seconds.
+contrast1D (copyToDevice): 		0.000224 seconds.
+contrast1D (kernel): 			0.000256 seconds.
+contrast1D (copyFromDevice): 		0.000471 seconds.
+triangularSmooth (allocation): 		0.000206 seconds.
+triangularSmooth (copyToDevice): 	0.000441 seconds.
+triangularSmooth (kernel): 		0.000408 seconds.
+triangularSmooth (copyFromDevice): 	0.000688 seconds.
+
+Execution time: 			0.147959 seconds.
+
+rgb2gray (kernel): 			0.007047 seconds.
+histogram1D (kernel): 			0.001445 seconds.
+contrast1D (kernel): 			0.008508 seconds.
+triangularSmooth (kernel): 		0.084760 seconds.
+
+Execution time: 			0.102291 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image01.jpg
+rgb2gray (allocation): 			0.000202 seconds.
+rgb2gray (copyToDevice): 		0.001004 seconds.
+rgb2gray (kernel): 			0.000191 seconds.
+rgb2gray (copyFromDevice): 		0.000926 seconds.
+histogram1D (allocation): 		0.000225 seconds.
+histogram1D (copyToDevice): 		0.000294 seconds.
+histogram1D (kernel): 			0.000308 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000124 seconds.
+contrast1D (copyToDevice): 		0.000264 seconds.
+contrast1D (kernel): 			0.000260 seconds.
+contrast1D (copyFromDevice): 		0.000527 seconds.
+triangularSmooth (allocation): 		0.000220 seconds.
+triangularSmooth (copyToDevice): 	0.000466 seconds.
+triangularSmooth (kernel): 		0.000470 seconds.
+triangularSmooth (copyFromDevice): 	0.000792 seconds.
+
+Execution time: 			0.730306 seconds.
+
+rgb2gray (kernel): 			0.008341 seconds.
+histogram1D (kernel): 			0.001671 seconds.
+contrast1D (kernel): 			0.009989 seconds.
+triangularSmooth (kernel): 		0.099258 seconds.
+
+Execution time: 			0.119777 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image02.jpg
+rgb2gray (allocation): 			0.000204 seconds.
+rgb2gray (copyToDevice): 		0.002109 seconds.
+rgb2gray (kernel): 			0.000278 seconds.
+rgb2gray (copyFromDevice): 		0.001931 seconds.
+histogram1D (allocation): 		0.000234 seconds.
+histogram1D (copyToDevice): 		0.000671 seconds.
+histogram1D (kernel): 			0.000484 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000126 seconds.
+contrast1D (copyToDevice): 		0.000595 seconds.
+contrast1D (kernel): 			0.000345 seconds.
+contrast1D (copyFromDevice): 		0.000994 seconds.
+triangularSmooth (allocation): 		0.000223 seconds.
+triangularSmooth (copyToDevice): 	0.000791 seconds.
+triangularSmooth (kernel): 		0.000916 seconds.
+triangularSmooth (copyFromDevice): 	0.001781 seconds.
+
+Execution time: 			1.038662 seconds.
+
+rgb2gray (kernel): 			0.018779 seconds.
+histogram1D (kernel): 			0.003667 seconds.
+contrast1D (kernel): 			0.022183 seconds.
+triangularSmooth (kernel): 		0.225642 seconds.
+
+Execution time: 			0.270852 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image03.jpg
+rgb2gray (allocation): 			0.000205 seconds.
+rgb2gray (copyToDevice): 		0.001485 seconds.
+rgb2gray (kernel): 			0.000197 seconds.
+rgb2gray (copyFromDevice): 		0.001400 seconds.
+histogram1D (allocation): 		0.000235 seconds.
+histogram1D (copyToDevice): 		0.000462 seconds.
+histogram1D (kernel): 			0.000401 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000125 seconds.
+contrast1D (copyToDevice): 		0.000407 seconds.
+contrast1D (kernel): 			0.000289 seconds.
+contrast1D (copyFromDevice): 		0.000722 seconds.
+triangularSmooth (allocation): 		0.000209 seconds.
+triangularSmooth (copyToDevice): 	0.000604 seconds.
+triangularSmooth (kernel): 		0.000682 seconds.
+triangularSmooth (copyFromDevice): 	0.001193 seconds.
+
+Execution time: 			0.992127 seconds.
+
+rgb2gray (kernel): 			0.012419 seconds.
+histogram1D (kernel): 			0.002530 seconds.
+contrast1D (kernel): 			0.015246 seconds.
+triangularSmooth (kernel): 		0.155138 seconds.
+
+Execution time: 			0.185883 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image04.bmp
+rgb2gray (allocation): 			0.000212 seconds.
+rgb2gray (copyToDevice): 		0.001277 seconds.
+rgb2gray (kernel): 			0.000229 seconds.
+rgb2gray (copyFromDevice): 		0.001282 seconds.
+histogram1D (allocation): 		0.000199 seconds.
+histogram1D (copyToDevice): 		0.000389 seconds.
+histogram1D (kernel): 			0.002050 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000102 seconds.
+contrast1D (copyToDevice): 		0.000336 seconds.
+contrast1D (kernel): 			0.000304 seconds.
+contrast1D (copyFromDevice): 		0.000681 seconds.
+triangularSmooth (allocation): 		0.000192 seconds.
+triangularSmooth (copyToDevice): 	0.000542 seconds.
+triangularSmooth (kernel): 		0.000612 seconds.
+triangularSmooth (copyFromDevice): 	0.001101 seconds.
+
+Execution time: 			0.147418 seconds.
+
+rgb2gray (kernel): 			0.010643 seconds.
+histogram1D (kernel): 			0.003537 seconds.
+contrast1D (kernel): 			0.012545 seconds.
+triangularSmooth (kernel): 		0.135573 seconds.
+
+Execution time: 			0.162846 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image05.jpg
+rgb2gray (allocation): 			0.000215 seconds.
+rgb2gray (copyToDevice): 		0.001185 seconds.
+rgb2gray (kernel): 			0.000212 seconds.
+rgb2gray (copyFromDevice): 		0.001466 seconds.
+histogram1D (allocation): 		0.000225 seconds.
+histogram1D (copyToDevice): 		0.000354 seconds.
+histogram1D (kernel): 			0.000389 seconds.
+histogram1D (copyFromDevice): 		0.000020 seconds.
+contrast1D (allocation): 		0.000125 seconds.
+contrast1D (copyToDevice): 		0.000317 seconds.
+contrast1D (kernel): 			0.000271 seconds.
+contrast1D (copyFromDevice): 		0.000951 seconds.
+triangularSmooth (allocation): 		0.000209 seconds.
+triangularSmooth (copyToDevice): 	0.000509 seconds.
+triangularSmooth (kernel): 		0.000542 seconds.
+triangularSmooth (copyFromDevice): 	0.000995 seconds.
+
+Execution time: 			0.583238 seconds.
+
+rgb2gray (kernel): 			0.009966 seconds.
+histogram1D (kernel): 			0.002022 seconds.
+contrast1D (kernel): 			0.012053 seconds.
+triangularSmooth (kernel): 		0.121275 seconds.
+
+Execution time: 			0.145850 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image06.jpg
+rgb2gray (allocation): 			0.000206 seconds.
+rgb2gray (copyToDevice): 		0.006339 seconds.
+rgb2gray (kernel): 			0.000449 seconds.
+rgb2gray (copyFromDevice): 		0.003828 seconds.
+histogram1D (allocation): 		0.000238 seconds.
+histogram1D (copyToDevice): 		0.002063 seconds.
+histogram1D (kernel): 			0.005655 seconds.
+histogram1D (copyFromDevice): 		0.000023 seconds.
+contrast1D (allocation): 		0.000123 seconds.
+contrast1D (copyToDevice): 		0.001851 seconds.
+contrast1D (kernel): 			0.000739 seconds.
+contrast1D (copyFromDevice): 		0.002897 seconds.
+triangularSmooth (allocation): 		0.000217 seconds.
+triangularSmooth (copyToDevice): 	0.002207 seconds.
+triangularSmooth (kernel): 		0.002747 seconds.
+triangularSmooth (copyFromDevice): 	0.003941 seconds.
+
+Execution time: 			0.960175 seconds.
+
+rgb2gray (kernel): 			0.055274 seconds.
+histogram1D (kernel): 			0.015100 seconds.
+contrast1D (kernel): 			0.069747 seconds.
+triangularSmooth (kernel): 		0.709921 seconds.
+
+Execution time: 			0.851016 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image07.jpg
+rgb2gray (allocation): 			0.000208 seconds.
+rgb2gray (copyToDevice): 		0.001040 seconds.
+rgb2gray (kernel): 			0.000213 seconds.
+rgb2gray (copyFromDevice): 		0.001146 seconds.
+histogram1D (allocation): 		0.000230 seconds.
+histogram1D (copyToDevice): 		0.000312 seconds.
+histogram1D (kernel): 			0.000384 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000122 seconds.
+contrast1D (copyToDevice): 		0.000261 seconds.
+contrast1D (kernel): 			0.000254 seconds.
+contrast1D (copyFromDevice): 		0.000707 seconds.
+triangularSmooth (allocation): 		0.000215 seconds.
+triangularSmooth (copyToDevice): 	0.000486 seconds.
+triangularSmooth (kernel): 		0.000476 seconds.
+triangularSmooth (copyFromDevice): 	0.000832 seconds.
+
+Execution time: 			0.287964 seconds.
+
+rgb2gray (kernel): 			0.008361 seconds.
+histogram1D (kernel): 			0.001729 seconds.
+contrast1D (kernel): 			0.010196 seconds.
+triangularSmooth (kernel): 		0.103796 seconds.
+
+Execution time: 			0.124590 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image08.jpg
+rgb2gray (allocation): 			0.000245 seconds.
+rgb2gray (copyToDevice): 		0.004659 seconds.
+rgb2gray (kernel): 			0.000346 seconds.
+rgb2gray (copyFromDevice): 		0.002063 seconds.
+histogram1D (allocation): 		0.000235 seconds.
+histogram1D (copyToDevice): 		0.001447 seconds.
+histogram1D (kernel): 			0.001036 seconds.
+histogram1D (copyFromDevice): 		0.000021 seconds.
+contrast1D (allocation): 		0.000124 seconds.
+contrast1D (copyToDevice): 		0.001272 seconds.
+contrast1D (kernel): 			0.000569 seconds.
+contrast1D (copyFromDevice): 		0.001985 seconds.
+triangularSmooth (allocation): 		0.000222 seconds.
+triangularSmooth (copyToDevice): 	0.001584 seconds.
+triangularSmooth (kernel): 		0.001946 seconds.
+triangularSmooth (copyFromDevice): 	0.003306 seconds.
+
+Execution time: 			0.219427 seconds.
+
+rgb2gray (kernel): 			0.037677 seconds.
+histogram1D (kernel): 			0.008027 seconds.
+contrast1D (kernel): 			0.048631 seconds.
+triangularSmooth (kernel): 		0.495189 seconds.
+
+Execution time: 			0.590493 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image09.bmp
+rgb2gray (allocation): 			0.000349 seconds.
+rgb2gray (copyToDevice): 		0.047516 seconds.
+rgb2gray (kernel): 			0.002724 seconds.
+rgb2gray (copyFromDevice): 		0.025697 seconds.
+histogram1D (allocation): 		0.000232 seconds.
+histogram1D (copyToDevice): 		0.015746 seconds.
+histogram1D (kernel): 			0.063941 seconds.
+histogram1D (copyFromDevice): 		0.000033 seconds.
+contrast1D (allocation): 		0.000135 seconds.
+contrast1D (copyToDevice): 		0.015781 seconds.
+contrast1D (kernel): 			0.006760 seconds.
+contrast1D (copyFromDevice): 		0.017603 seconds.
+triangularSmooth (allocation): 		0.000258 seconds.
+triangularSmooth (copyToDevice): 	0.015922 seconds.
+triangularSmooth (kernel): 		0.021798 seconds.
+triangularSmooth (copyFromDevice): 	0.025484 seconds.
+
+Execution time: 			0.628590 seconds.
+
+rgb2gray (kernel): 			0.435878 seconds.
+histogram1D (kernel): 			0.122098 seconds.
+contrast1D (kernel): 			0.454845 seconds.
+triangularSmooth (kernel): 		6.329620 seconds.
+
+Execution time: 			7.353234 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image10.jpg
+rgb2gray (allocation): 			0.000205 seconds.
+rgb2gray (copyToDevice): 		0.005226 seconds.
+rgb2gray (kernel): 			0.000373 seconds.
+rgb2gray (copyFromDevice): 		0.002743 seconds.
+histogram1D (allocation): 		0.000217 seconds.
+histogram1D (copyToDevice): 		0.001696 seconds.
+histogram1D (kernel): 			0.001847 seconds.
+histogram1D (copyFromDevice): 		0.000022 seconds.
+contrast1D (allocation): 		0.000101 seconds.
+contrast1D (copyToDevice): 		0.001393 seconds.
+contrast1D (kernel): 			0.000596 seconds.
+contrast1D (copyFromDevice): 		0.003100 seconds.
+triangularSmooth (allocation): 		0.000185 seconds.
+triangularSmooth (copyToDevice): 	0.001835 seconds.
+triangularSmooth (kernel): 		0.002110 seconds.
+triangularSmooth (copyFromDevice): 	0.003317 seconds.
+
+Execution time: 			0.698397 seconds.
+
+rgb2gray (kernel): 			0.043009 seconds.
+histogram1D (kernel): 			0.008830 seconds.
+contrast1D (kernel): 			0.053562 seconds.
+triangularSmooth (kernel): 		0.545161 seconds.
+
+Execution time: 			0.651077 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image11.jpg
+rgb2gray (allocation): 			0.000206 seconds.
+rgb2gray (copyToDevice): 		0.000932 seconds.
+rgb2gray (kernel): 			0.000169 seconds.
+rgb2gray (copyFromDevice): 		0.000977 seconds.
+histogram1D (allocation): 		0.000224 seconds.
+histogram1D (copyToDevice): 		0.000278 seconds.
+histogram1D (kernel): 			0.000426 seconds.
+histogram1D (copyFromDevice): 		0.000020 seconds.
+contrast1D (allocation): 		0.000125 seconds.
+contrast1D (copyToDevice): 		0.000233 seconds.
+contrast1D (kernel): 			0.000245 seconds.
+contrast1D (copyFromDevice): 		0.000598 seconds.
+triangularSmooth (allocation): 		0.000200 seconds.
+triangularSmooth (copyToDevice): 	0.000449 seconds.
+triangularSmooth (kernel): 		0.000433 seconds.
+triangularSmooth (copyFromDevice): 	0.000748 seconds.
+
+Execution time: 			0.249018 seconds.
+
+rgb2gray (kernel): 			0.007323 seconds.
+histogram1D (kernel): 			0.001567 seconds.
+contrast1D (kernel): 			0.009212 seconds.
+triangularSmooth (kernel): 		0.091660 seconds.
+
+Execution time: 			0.110351 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image12.jpg
+rgb2gray (allocation): 			0.000239 seconds.
+rgb2gray (copyToDevice): 		0.002159 seconds.
+rgb2gray (kernel): 			0.000263 seconds.
+rgb2gray (copyFromDevice): 		0.002164 seconds.
+histogram1D (allocation): 		0.000240 seconds.
+histogram1D (copyToDevice): 		0.000669 seconds.
+histogram1D (kernel): 			0.000579 seconds.
+histogram1D (copyFromDevice): 		0.000020 seconds.
+contrast1D (allocation): 		0.000126 seconds.
+contrast1D (copyToDevice): 		0.000587 seconds.
+contrast1D (kernel): 			0.000342 seconds.
+contrast1D (copyFromDevice): 		0.000977 seconds.
+triangularSmooth (allocation): 		0.000221 seconds.
+triangularSmooth (copyToDevice): 	0.000786 seconds.
+triangularSmooth (kernel): 		0.000946 seconds.
+triangularSmooth (copyFromDevice): 	0.001748 seconds.
+
+Execution time: 			0.187355 seconds.
+
+rgb2gray (kernel): 			0.018169 seconds.
+histogram1D (kernel): 			0.003611 seconds.
+contrast1D (kernel): 			0.021944 seconds.
+triangularSmooth (kernel): 		0.223167 seconds.
+
+Execution time: 			0.267467 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image13.jpg
+rgb2gray (allocation): 			0.000202 seconds.
+rgb2gray (copyToDevice): 		0.005770 seconds.
+rgb2gray (kernel): 			0.000416 seconds.
+rgb2gray (copyFromDevice): 		0.002397 seconds.
+histogram1D (allocation): 		0.000233 seconds.
+histogram1D (copyToDevice): 		0.001873 seconds.
+histogram1D (kernel): 			0.002597 seconds.
+histogram1D (copyFromDevice): 		0.000023 seconds.
+contrast1D (allocation): 		0.000118 seconds.
+contrast1D (copyToDevice): 		0.001664 seconds.
+contrast1D (kernel): 			0.000692 seconds.
+contrast1D (copyFromDevice): 		0.002642 seconds.
+triangularSmooth (allocation): 		0.000212 seconds.
+triangularSmooth (copyToDevice): 	0.002006 seconds.
+triangularSmooth (kernel): 		0.002484 seconds.
+triangularSmooth (copyFromDevice): 	0.003386 seconds.
+
+Execution time: 			0.662305 seconds.
+
+rgb2gray (kernel): 			0.049493 seconds.
+histogram1D (kernel): 			0.010991 seconds.
+contrast1D (kernel): 			0.063630 seconds.
+triangularSmooth (kernel): 		0.647182 seconds.
+
+Execution time: 			0.771811 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image14.jpg
+rgb2gray (allocation): 			0.000203 seconds.
+rgb2gray (copyToDevice): 		0.005119 seconds.
+rgb2gray (kernel): 			0.000408 seconds.
+rgb2gray (copyFromDevice): 		0.001962 seconds.
+histogram1D (allocation): 		0.000234 seconds.
+histogram1D (copyToDevice): 		0.001672 seconds.
+histogram1D (kernel): 			0.003004 seconds.
+histogram1D (copyFromDevice): 		0.000022 seconds.
+contrast1D (allocation): 		0.000121 seconds.
+contrast1D (copyToDevice): 		0.001473 seconds.
+contrast1D (kernel): 			0.000610 seconds.
+contrast1D (copyFromDevice): 		0.002216 seconds.
+triangularSmooth (allocation): 		0.000211 seconds.
+triangularSmooth (copyToDevice): 	0.001776 seconds.
+triangularSmooth (kernel): 		0.002190 seconds.
+triangularSmooth (copyFromDevice): 	0.003260 seconds.
+
+Execution time: 			0.170556 seconds.
+
+rgb2gray (kernel): 			0.044115 seconds.
+histogram1D (kernel): 			0.009940 seconds.
+contrast1D (kernel): 			0.055862 seconds.
+triangularSmooth (kernel): 		0.568581 seconds.
+
+Execution time: 			0.679005 seconds.
+
+Pixels above threshold: 0 (0%).
+images/image15.jpg
+rgb2gray (allocation): 			0.000208 seconds.
+rgb2gray (copyToDevice): 		0.007216 seconds.
+rgb2gray (kernel): 			0.000388 seconds.
+rgb2gray (copyFromDevice): 		0.002295 seconds.
+histogram1D (allocation): 		0.000214 seconds.
+histogram1D (copyToDevice): 		0.002355 seconds.
+histogram1D (kernel): 			0.001952 seconds.
+histogram1D (copyFromDevice): 		0.000023 seconds.
+contrast1D (allocation): 		0.000100 seconds.
+contrast1D (copyToDevice): 		0.002219 seconds.
+contrast1D (kernel): 			0.000640 seconds.
+contrast1D (copyFromDevice): 		0.002532 seconds.
+triangularSmooth (allocation): 		0.000184 seconds.
+triangularSmooth (copyToDevice): 	0.002512 seconds.
+triangularSmooth (kernel): 		0.002219 seconds.
+triangularSmooth (copyFromDevice): 	0.003633 seconds.
+
+Execution time: 			0.772872 seconds.
+
+rgb2gray (kernel): 			0.044608 seconds.
+histogram1D (kernel): 			0.009287 seconds.
+contrast1D (kernel): 			0.056742 seconds.
+triangularSmooth (kernel): 		0.577352 seconds.
+
+Execution time: 			0.688495 seconds.
+
+Pixels above threshold: 0 (0%).
+images/large.jpg
+rgb2gray (allocation): 			0.000480 seconds.
+rgb2gray (copyToDevice): 		0.094128 seconds.
+rgb2gray (kernel): 			0.004721 seconds.
+rgb2gray (copyFromDevice): 		0.051334 seconds.
+histogram1D (allocation): 		0.000257 seconds.
+histogram1D (copyToDevice): 		0.031369 seconds.
+histogram1D (kernel): 			0.075347 seconds.
+histogram1D (copyFromDevice): 		0.000033 seconds.
+rgb2gray (kernel): 			0.835586 seconds.
+histogram1D (kernel): 			0.206062 seconds.
+contrast1D (kernel): 			1.069440 seconds.
+triangularSmooth (kernel): 		10.876382 seconds.
+
+Execution time: 			12.988020 seconds.
+
+images/office.jpg
+rgb2gray (allocation): 			0.000287 seconds.
+rgb2gray (copyToDevice): 		0.033032 seconds.
+rgb2gray (kernel): 			0.001784 seconds.
+rgb2gray (copyFromDevice): 		0.018722 seconds.
+histogram1D (allocation): 		0.000249 seconds.
+histogram1D (copyToDevice): 		0.010994 seconds.
+histogram1D (kernel): 			0.011737 seconds.
+histogram1D (copyFromDevice): 		0.000034 seconds.
+contrast1D (allocation): 		0.000153 seconds.
+contrast1D (copyToDevice): 		0.010969 seconds.
+contrast1D (kernel): 			0.003208 seconds.
+contrast1D (copyFromDevice): 		0.012761 seconds.
+triangularSmooth (allocation): 		0.000249 seconds.
+triangularSmooth (copyToDevice): 	0.011161 seconds.
+triangularSmooth (kernel): 		0.013997 seconds.
+triangularSmooth (copyFromDevice): 	0.018352 seconds.
+
+Execution time: 			0.813137 seconds.
+
+rgb2gray (kernel): 			0.294336 seconds.
+histogram1D (kernel): 			0.061895 seconds.
+contrast1D (kernel): 			0.372929 seconds.
+triangularSmooth (kernel): 		3.792873 seconds.
+
+Execution time: 			4.522644 seconds.
+
+Pixels above threshold: 0 (0%).
