@@ -22,7 +22,7 @@ The report discusses my implementation of an image processing pipeline for the P
 \item Contrast enhancement
 \item Smoothing
 \end{enumerate}
-Section 2 will go through these steps and explain into detail how the specific kernel was converted to a CUDA kernel. Section 3 will report the overall speedup compared to sequential kernels and identify room for improvement.
+Section 2 will go through these steps and explain into detail how the specific kernel was converted to a CUDA kernel. Section 3 will report the overall speedup compared to sequential kernels and identify room for improvement. Finally, performance results on the supplied images can be found in section 4.
 
 \section{Image conversion pipeline}
 All runtimes in this section are based on an image on in the image set. The image in the image set has `nice' dimensions, which makes the impact of `pitching' the memory hard to measure. Therefor, a big image found on Google Image search was used\footnote{\url{http://www.adnahome.org/xviews/town-1969-large.jpg}}. The dimensions of this image are 8773 x 5352 with 24-bit colors (total of 46.953.096 pixels).
@@ -173,8 +173,52 @@ To make the comparison a little bit more fair, we should add some memory allocat
 
 If we take a look at the composition of the total run time at the next page, we can see that the histogram calculation accounts for a disproportionally large portion of it. Combined with the utilization of 1\% for this kernel, this would be the most obvious place to further optimize the program. Reducing the collisions of atomic operations on shared memory can be reduced, which will lower the contention and speed up the kernel.
 
-\begin{figure}[t]
-\includegraphics[scale=0.8]{figures/composition.pdf}
+\begin{figure}[h]
+\includegraphics[scale=0.7]{figures/composition.pdf}
 \end{figure}
+
+\section{Performance results}
+
+Performance results for the supplied images can be found in the table below. Note that for the kernels these are, like previous results, only computation times, memory copying overhead is not included. \\
+
+\begin{tabular}{ | l | S | S | S | S | S | S | }
+	\hline
+	\textbf{File} & \textbf{Grayscale} & \textbf{Histogram} & \textbf{Contrast} & \textbf{Smoothing} \\
+	\hline
+	image00.jpg & 0.223 & 0.343 & 0.256 & 0.408 \\
+	\hline
+	image01.jpg & 0.191 & 0.308 & 0.260 & 0.470 \\
+	\hline
+	image02.jpg & 0.278 & 0.484 & 0.345 & 0.916 \\
+	\hline
+	image03.jpg & 0.197 & 0.401 & 0.289 & 0.682 \\
+	\hline
+	image04.bmp & 0.229 & 2.050 & 0.304 & 0.612 \\
+	\hline
+	image05.jpg & 0.212 & 0.389 & 0.271 & 0.542 \\
+	\hline
+	image06.jpg & 0.449 & 5.655 & 0.739 & 2.747 \\
+	\hline
+	image07.jpg & 0.213 & 0.384 & 0.254 & 0.476 \\
+	\hline
+	image08.jpg & 0.346 & 1.036 & 0.569 & 1.946 \\
+	\hline
+	image09.bmp & 2.724 & 63.941 & 6.760 & 21.798 \\
+	\hline
+	image10.jpg & 0.373 & 1.847 & 0.596 & 2.110 \\
+	\hline
+	image11.jpg & 0.169 & 0.426 & 0.245 & 0.433 \\
+	\hline
+	image12.jpg & 0.263 & 0.579 & 0.342 & 0.946 \\
+	\hline
+	image13.jpg & 0.416 & 2.597 & 0.692 & 2.484 \\
+	\hline
+	image14.jpg & 0.408 & 3.004 & 0.610 & 2.190 \\
+	\hline
+	image15.jpg & 0.388 & 1.952 & 0.640 & 2.219 \\
+	\hline
+\end{tabular} \\
+
+
 
 \end{document}
